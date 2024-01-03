@@ -124,9 +124,6 @@ func SurviveCmdByFile(parameter Parameter) {
 		return
 	}
 
-	// 产生本次结果前先将原来的结果清空
-	utils.ClearFile("survive")
-
 	// 存活的目标
 	var surviveUrls []string
 
@@ -170,7 +167,7 @@ func SurviveCmdByFile(parameter Parameter) {
 	close(urlChan)
 	wg.Wait()
 
-	currentTime := time.Now().Format("20060102")
+	currentTime := time.Now().Format("20060102150405")
 	filePath := filepath.Join(utils.ResultLogName, "survive", currentTime+".txt")
 	if parameter.isClean {
 		color.Info.Println("过滤者模式已开启，正在去重...")

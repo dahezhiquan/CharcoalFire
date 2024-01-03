@@ -17,7 +17,7 @@ func WriteFile(path string, content []string) {
 	}
 
 	// 构建文件名
-	currentTime := time.Now().Format("20060102")
+	currentTime := time.Now().Format("20060102150405")
 	filePath := filepath.Join(ResultLogName, path, currentTime+".txt")
 
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
