@@ -21,3 +21,5 @@
 go.work
 
 .idea/
+urls.txt
+logs/
