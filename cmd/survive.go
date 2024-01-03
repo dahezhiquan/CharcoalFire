@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -21,10 +20,12 @@ type Parameter struct {
 	proxy   string
 	file    string
 	isClean bool
+	thread  int
 }
 
 func init() {
 	rootCmd.AddCommand(surviveCmd)
+	surviveCmd.Flags().IntP("thread", "r", 500, "线程数")
 	surviveCmd.Flags().StringP("url", "u", "", "目标url")
 	surviveCmd.Flags().StringP("file", "f", "", "目标url列表文件")
 	surviveCmd.Flags().IntP("timeout", "t", 10, "超时时间")
@@ -41,6 +42,7 @@ var surviveCmd = &cobra.Command{
 		parameter.file, _ = cmd.Flags().GetString("file")
 		parameter.proxy, _ = cmd.Flags().GetString("proxy")
 		parameter.timeout, _ = cmd.Flags().GetInt("timeout")
+		parameter.thread, _ = cmd.Flags().GetInt("thread")
 		parameter.isClean, _ = cmd.Flags().GetBool("clean")
 		if parameter.url != "" {
 			SurviveCmd(parameter)
@@ -119,32 +121,41 @@ func SurviveCmdByFile(parameter Parameter) {
 	// 存放存活目标的title字典
 	surviveUrlsInfo := make(map[string]string)
 
-	numThreads := runtime.NumCPU() // 获取当前系统的逻辑 CPU 数量
-	runtime.GOMAXPROCS(numThreads) // 设置 Goroutine 可以并行执行的最大 CPU 数量
-	color.Success.Println(parameter.file + "文件解析成功，目标总数：" + strconv.Itoa(len(result)) + " 当前线程数：" + strconv.Itoa(numThreads))
+	threadNum := parameter.thread
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex // 互斥锁
+	urlChan := make(chan string)
 
-	for _, url := range result {
-		var parameter2 Parameter
-		parameter2 = parameter
-		parameter2.url = url
+	for i := 0; i < threadNum; i++ {
 		wg.Add(1)
-		go func(u string) {
+		go func() {
 			defer wg.Done()
-			isSurvive, htmlDocument := SurviveCmd(parameter2)
-			if isSurvive {
-				surviveUrls = append(surviveUrls, parameter2.url)
-				// 目标无标题，取随机数当标题
-				if htmlDocument.Title == "" {
-					surviveUrlsInfo[parameter2.url] = utils.RandomString(16)
-				} else {
-					surviveUrlsInfo[parameter2.url] = htmlDocument.Title
+			for url := range urlChan {
+				var parameter2 Parameter
+				parameter2 = parameter
+				parameter2.url = url
+				isSurvive, htmlDocument := SurviveCmd(parameter2)
+				if isSurvive {
+					mu.Lock() // 加锁
+					surviveUrls = append(surviveUrls, parameter2.url)
+					// 目标无标题，取随机数当标题
+					if htmlDocument.Title == "" {
+						surviveUrlsInfo[parameter2.url] = utils.RandomString(16)
+					} else {
+						surviveUrlsInfo[parameter2.url] = htmlDocument.Title
+					}
+					mu.Unlock() // 解锁
 				}
 			}
-		}(url)
+		}()
 	}
 
+	// 将url发送到urlChan供消费者goroutine处理
+	for _, url := range result {
+		urlChan <- url
+	}
+	close(urlChan)
 	wg.Wait()
 
 	currentTime := time.Now().Format("20060102")
