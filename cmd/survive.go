@@ -63,29 +63,38 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 		return false, utils.HtmlDocument{}
 	}
 
-	if parameter.proxy != "" {
-		proxyURL, err := url.Parse(parameter.proxy)
-		if err != nil {
-			color.Error.Println("代理解析失败")
-		}
-		client = &http.Client{
-			Timeout: time.Duration(parameter.timeout) * time.Second,
-			Transport: &http.Transport{
-				Proxy:           http.ProxyURL(proxyURL),
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-	} else {
-		client = &http.Client{
-			Timeout:   time.Duration(parameter.timeout) * time.Second,
-			Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-		}
+	// 不管是否使用了代理，都先按不使用代理发包
+	client = &http.Client{
+		Timeout:   time.Duration(parameter.timeout) * time.Second,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 	}
 
 	resp, err := client.Get(parameter.url)
+	var flag = false // 代理是否能否访问目标的标记
 	if err != nil {
-		color.Error.Println(parameter.url + " 目标连接失败")
-		return false, utils.HtmlDocument{}
+
+		// 如果设置了代理，则再尝试使用代理访问
+		if parameter.proxy != "" {
+			proxyURL, err2 := url.Parse(parameter.proxy)
+			if err2 != nil {
+				color.Error.Println("代理解析失败")
+			}
+			client = &http.Client{
+				Timeout: time.Duration(parameter.timeout) * time.Second,
+				Transport: &http.Transport{
+					Proxy:           http.ProxyURL(proxyURL),
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			}
+			resp, err2 = client.Get(parameter.url)
+			if err2 == nil {
+				flag = true
+			}
+		}
+		if !flag {
+			color.Error.Println(parameter.url + " 目标连接失败")
+			return false, utils.HtmlDocument{}
+		}
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
