@@ -6,6 +6,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -24,6 +25,8 @@ type Parameter struct {
 }
 
 func init() {
+	ew := &utils.EmptyWriter{}
+	log.SetOutput(io.Writer(ew))
 	rootCmd.AddCommand(surviveCmd)
 	surviveCmd.Flags().IntP("thread", "r", 500, "线程数")
 	surviveCmd.Flags().StringP("url", "u", "", "目标url")
