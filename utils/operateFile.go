@@ -5,6 +5,7 @@ import (
 	"github.com/gookit/color"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -81,4 +82,60 @@ func ReadLinesFromFile(filename string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// ProcessSourceFile 对目标文件的内容提炼，目前实现
+// 1.去重
+// 2.去除空行
+// TODO domain转url
+func ProcessSourceFile(path string) {
+	file, err := os.OpenFile(path, os.O_RDWR, 0644)
+	if err != nil {
+		color.Error.Println("文件打开失败")
+		return
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			color.Warn.Println("目标文件未正常关闭")
+		}
+	}(file)
+
+	uniqueLines := make(map[string]bool)
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			uniqueLines[line] = true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		color.Error.Println("读取文件失败")
+		return
+	}
+
+	if err := file.Truncate(0); err != nil {
+		color.Error.Println("清空文件失败")
+		return
+	}
+
+	if _, err := file.Seek(0, 0); err != nil {
+		color.Error.Println("重定位文件指针失败")
+		return
+	}
+
+	writer := bufio.NewWriter(file)
+	for line := range uniqueLines {
+		_, err := writer.WriteString(line + "\n")
+		if err != nil {
+			color.Error.Println("文件写入失败")
+			return
+		}
+	}
+	err = writer.Flush()
+	if err != nil {
+		return
+	}
 }

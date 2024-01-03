@@ -1,6 +1,8 @@
 package main
 
-import "CharcoalFire/cmd"
+import (
+	"CharcoalFire/cmd"
+)
 
 func main() {
 	err := cmd.Execute()
