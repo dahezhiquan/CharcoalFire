@@ -1,5 +1,7 @@
 package utils
 
+// 常量池
+
 const Author = `dahezhiquan - wechat`
 
 const Version = "CharcoalFire Version 0.1.1"

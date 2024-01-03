@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"CharcoalFire/utils"
-	"crypto/tls"
 	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -59,69 +57,40 @@ var surviveCmd = &cobra.Command{
 }
 
 func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
-	var client *http.Client
+
 	var isUrl = utils.IsUrl(parameter.url)
 	if !isUrl {
 		color.Error.Println(parameter.url + " 目标不是URL")
 		return false, utils.HtmlDocument{}
 	}
 
-	// 不管是否使用了代理，都先按不使用代理发包
-	client = &http.Client{
-		Timeout:   time.Duration(parameter.timeout) * time.Second,
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-	}
+	ask := utils.Ask{}
+	ask.Url = parameter.url
+	ask.Proxy = parameter.proxy
+	ask.Timeout = parameter.timeout
+	resp := utils.Outsourcing(ask)
 
-	resp, err := client.Get(parameter.url)
-	var flag = false // 代理是否能否访问目标的标记
-	if err != nil {
-
-		// 如果设置了代理，则再尝试使用代理访问
-		if parameter.proxy != "" {
-			proxyURL, err2 := url.Parse(parameter.proxy)
-			if err2 != nil {
-				color.Error.Println("代理解析失败")
-			}
-			client = &http.Client{
-				Timeout: time.Duration(parameter.timeout) * time.Second,
-				Transport: &http.Transport{
-					Proxy:           http.ProxyURL(proxyURL),
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-			resp, err2 = client.Get(parameter.url)
-			if err2 == nil {
-				flag = true
-			}
-		}
-		if !flag {
-			color.Error.Println(parameter.url + " 目标连接失败")
+	// 防止空指针问题
+	if resp != nil {
+		if resp.StatusCode == http.StatusOK {
+			color.Success.Println(parameter.url + " 目标存活")
+			return true, utils.ParseHtml(resp)
+		} else {
+			color.Danger.Println(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 			return false, utils.HtmlDocument{}
 		}
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			color.Warn.Println(parameter.url + " 目标连接未关闭")
-		}
-	}(resp.Body)
-
-	if resp.StatusCode == http.StatusOK {
-		color.Success.Println(parameter.url + " 目标存活")
-		return true, utils.ParseHtml(resp)
 	} else {
-		color.Danger.Println(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 		return false, utils.HtmlDocument{}
 	}
 }
 
-func SurviveCmdByFile(parameter Parameter) {
+func SurviveCmdByFile(parameter Parameter) []string {
 	// 先对文件进行处理，去重和去空行
 	utils.ProcessSourceFile(parameter.file)
 	result, err := utils.ReadLinesFromFile(parameter.file)
 	if err != nil {
 		color.Error.Println("文件解析失败")
-		return
+		return nil
 	}
 
 	// 存活的目标
@@ -171,12 +140,15 @@ func SurviveCmdByFile(parameter Parameter) {
 	filePath := filepath.Join(utils.ResultLogName, "survive", currentTime+".txt")
 	if parameter.isClean {
 		color.Info.Println("过滤者模式已开启，正在去重...")
-		utils.WriteFile("survive", DeduplicateDictValues(surviveUrlsInfo))
+		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
+		utils.WriteFile("survive", surviveUrls)
 		color.Success.Println("去重已完成")
 		color.Success.Println("结果已保存到：" + filePath)
+		return surviveUrls
 	} else {
 		utils.WriteFile("survive", surviveUrls)
 		color.Success.Println("结果已保存到：" + filePath)
+		return surviveUrls
 	}
 }
 
