@@ -14,7 +14,7 @@ type HtmlDocument struct {
 	Icon  string
 }
 
-func ParseHtml(resp *http.Response) (htmlDocument HtmlDocument) {
+func GetHtmlDocument(resp *http.Response) (htmlDocument HtmlDocument) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {

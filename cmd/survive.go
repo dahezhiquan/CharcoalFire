@@ -74,7 +74,7 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 	if resp != nil {
 		if resp.StatusCode == http.StatusOK {
 			color.Success.Println(parameter.url + " 目标存活")
-			return true, utils.ParseHtml(resp)
+			return true, utils.GetHtmlDocument(resp)
 		} else {
 			color.Danger.Println(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 			return false, utils.HtmlDocument{}

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"CharcoalFire/utils"
-	"fmt"
 	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
@@ -60,7 +59,6 @@ var iconCmd = &cobra.Command{
 
 func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 	if htmlDocument.Icon != "" {
-		fmt.Println(htmlDocument.Icon)
 		// 第一种情况：icon href是一个直接的地址
 		if utils.IsUrl(htmlDocument.Icon) {
 			DownLoadIcon(iconParameter, htmlDocument)

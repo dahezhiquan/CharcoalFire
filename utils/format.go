@@ -21,7 +21,13 @@ func GetSuffix(path string) string {
 	lastDotIndex := strings.LastIndex(path, ".")
 	if lastDotIndex != -1 && lastDotIndex < len(path)-1 {
 		substringAfterLastDot := path[lastDotIndex+1:]
-		return substringAfterLastDot
+		splitResult := strings.Split(substringAfterLastDot, "?")
+		if len(splitResult) > 1 {
+			substringBeforeQuestionMark := splitResult[0]
+			return substringBeforeQuestionMark
+		} else {
+			return substringAfterLastDot
+		}
 	} else {
 		return ""
 	}
