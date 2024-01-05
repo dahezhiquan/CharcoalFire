@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 type IconParameter struct {
@@ -28,7 +29,8 @@ func init() {
 	iconCmd.Flags().StringP("file", "f", "", "目标url列表文件")
 	iconCmd.Flags().IntP("timeout", "t", 10, "超时时间")
 	iconCmd.Flags().StringP("proxy", "p", "", "代理地址")
-	iconCmd.Flags().BoolP("clean", "c", false, "过滤者模式（目标相同title只保留一个）")
+	// TODO 过滤者模式 相同icon hash只保留一个
+	// iconCmd.Flags().BoolP("clean", "c", false, "过滤者模式（目标相同icon hash只保留一个）")
 }
 
 var iconCmd = &cobra.Command{
@@ -49,11 +51,11 @@ var iconCmd = &cobra.Command{
 			} else {
 				color.Warn.Println(iconParameter.url + "未在此找到icon")
 			}
+			return
 		}
-		//if parameter.file != "" {
-		//	SurviveCmdByFile(parameter)
-		//	return
-		//}
+		if iconParameter.file != "" {
+			GetIconByFile(iconParameter)
+		}
 	},
 }
 
@@ -112,4 +114,47 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 		color.Error.Println("icon下载失败")
 	}
 	color.Success.Println("icon已下载到：" + iconDownloadPath)
+}
+
+// GetIconByFile 批量提取icon
+func GetIconByFile(iconParameter IconParameter) {
+	// 先对文件进行处理
+	utils.ProcessSourceFile(iconParameter.file)
+	result, err := utils.ReadLinesFromFile(iconParameter.file)
+	if err != nil {
+		color.Error.Println("文件解析失败")
+	}
+
+	threadNum := iconParameter.thread
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex // 互斥锁
+	urlChan := make(chan string)
+
+	for i := 0; i < threadNum; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for url := range urlChan {
+				var iconParameter2 IconParameter
+				iconParameter2 = iconParameter
+				iconParameter2.url = url
+				isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter2))
+				if isSurvive && htmlDocument.Icon != "" {
+					mu.Lock() // 加锁
+					GetIcon(iconParameter2, htmlDocument)
+					mu.Unlock() // 解锁
+				} else {
+					color.Warn.Println(iconParameter.url + "未在此找到icon")
+				}
+			}
+		}()
+	}
+
+	// 将url发送到urlChan供消费者goroutine处理
+	for _, url := range result {
+		urlChan <- url
+	}
+	close(urlChan)
+	wg.Wait()
 }

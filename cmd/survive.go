@@ -85,7 +85,7 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 }
 
 func SurviveCmdByFile(parameter Parameter) []string {
-	// 先对文件进行处理，去重和去空行
+	// 先对文件进行处理
 	utils.ProcessSourceFile(parameter.file)
 	result, err := utils.ReadLinesFromFile(parameter.file)
 	if err != nil {
