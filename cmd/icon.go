@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"CharcoalFire/utils"
+	"fmt"
 	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 type IconParameter struct {
@@ -43,7 +46,7 @@ var iconCmd = &cobra.Command{
 		if iconParameter.url != "" {
 			isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter))
 			if isSurvive && htmlDocument.Icon != "" {
-				GetIcon(iconParameter.url, htmlDocument)
+				GetIcon(iconParameter, htmlDocument)
 			} else {
 				color.Warn.Println(iconParameter.url + "未在此找到icon")
 			}
@@ -55,32 +58,60 @@ var iconCmd = &cobra.Command{
 	},
 }
 
-func GetIcon(url string, htmlDocument utils.HtmlDocument) {
+func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 	if htmlDocument.Icon != "" {
-		//第一种情况：icon href是一个直接的地址
-
-		//if utils.IsUrl(htmlDocument.Icon) {
-		//	iconDownloadPath := utils.ResultLogName + "/icon/" + utils.GetDomain(url) + utils.GetSuffix(url)
-		//	out, err := os.Create(iconDownloadPath) // 保存到本地的文件名
-		//	if err != nil {
-		//		color.Error.Println("日志文件创建失败")
-		//		return
-		//	}
-		//	defer func(out *os.File) {
-		//		err := out.Close()
-		//		if err != nil {
-		//			color.Warn.Println("日志文件未正常关闭")
-		//		}
-		//	}(out)
-		//
-		//	_, err = io.Copy(out, htmlDocument.Resp.Body)
-		//	if err != nil {
-		//		color.Error.Println("icon下载失败")
-		//	}
-		//	color.Success.Println("icon已下载到：" + iconDownloadPath)
-		//}
+		fmt.Println(htmlDocument.Icon)
+		// 第一种情况：icon href是一个直接的地址
+		if utils.IsUrl(htmlDocument.Icon) {
+			DownLoadIcon(iconParameter, htmlDocument)
+			return
+		}
+		// 第二种情况：icon href是一个相对的路径
+		if !utils.IsUrl(htmlDocument.Icon) {
+			htmlDocument.Icon = iconParameter.url + string('/') + htmlDocument.Icon
+			DownLoadIcon(iconParameter, htmlDocument)
+			return
+		}
+		// TODO 第三种情况：icon href 是协议的格式
 
 	} else {
 		color.Warn.Println("未在此找到icon")
 	}
+}
+
+func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
+	// 创建图片流
+	iconDownloadPath := utils.ResultLogName + "/icon/" + utils.GetDomain(iconParameter.url) + string('.') + utils.GetSuffix(htmlDocument.Icon)
+
+	// 创建目录
+	err := os.MkdirAll(filepath.Dir(iconDownloadPath), os.ModePerm)
+	if err != nil {
+		color.Error.Println("目录创建失败")
+		return
+	}
+
+	out, err := os.Create(iconDownloadPath) // 保存到本地的文件名
+	if err != nil {
+		color.Error.Println("日志文件创建失败")
+		return
+	}
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			color.Warn.Println("日志文件未正常关闭")
+		}
+	}(out)
+
+	ask := utils.Ask{}
+	ask.Url = htmlDocument.Icon
+	ask.Proxy = iconParameter.proxy
+	ask.Timeout = iconParameter.timeout
+	resp := utils.Outsourcing(ask)
+
+	// 写入图片流
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		color.Error.Println("icon下载失败")
+	}
+	color.Success.Println("icon已下载到：" + iconDownloadPath)
 }

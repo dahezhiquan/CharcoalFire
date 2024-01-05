@@ -51,13 +51,5 @@ func Outsourcing(ask Ask) *http.Response {
 			return nil
 		}
 	}
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			err := resp.Body.Close()
-			if err != nil {
-				color.Warn.Println(ask.Url + " 目标连接未关闭")
-			}
-		}
-	}()
 	return resp
 }
