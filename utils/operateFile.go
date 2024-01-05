@@ -87,7 +87,7 @@ func ReadLinesFromFile(filename string) ([]string, error) {
 // ProcessSourceFile 对目标文件的内容提炼，目前实现
 // 1.去重
 // 2.去除空行
-// TODO domain转url
+// domain转url
 func ProcessSourceFile(path string) {
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
@@ -107,7 +107,14 @@ func ProcessSourceFile(path string) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			uniqueLines[line] = true
+			// 保证line未url格式，加入前缀
+			if IsDoamin(line) {
+				httpUrl, httpsUrl := AddPrefix(line)
+				uniqueLines[httpUrl] = true
+				uniqueLines[httpsUrl] = true
+			} else {
+				uniqueLines[line] = true
+			}
 		}
 	}
 
@@ -138,4 +145,11 @@ func ProcessSourceFile(path string) {
 	if err != nil {
 		return
 	}
+}
+
+// AddPrefix domain加前缀
+func AddPrefix(url string) (string, string) {
+	httpURL := "http://" + url
+	httpsURL := "https://" + url
+	return httpURL, httpsURL
 }

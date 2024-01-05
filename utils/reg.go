@@ -31,5 +31,11 @@ func (rt *RegexpTool) FindString(input string) string {
 // IsUrl 判断是否为url
 func IsUrl(url string) bool {
 	tool := NewRegexpTool(`^(http|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?$`)
-	return tool.IsMatch(url) // true
+	return tool.IsMatch(url)
+}
+
+// IsDoamin 判断是否为域名
+func IsDoamin(url string) bool {
+	tool := NewRegexpTool(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$`)
+	return tool.IsMatch(url)
 }
