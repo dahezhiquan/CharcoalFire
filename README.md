@@ -3,4 +3,10 @@
 
 批量探活功能
 
-![image](https://github.com/dahezhiquan/CharcoalFire/assets/76278560/6e2fef53-142a-4b49-aed9-551a498d6649)
+![image](https://github.com/dahezhiquan/CharcoalFire/assets/76278560/bf09cc37-8b77-4cd1-a324-2964e1c47832)
+
+批量icon提取
+
+![image](https://github.com/dahezhiquan/CharcoalFire/assets/76278560/380bcdb7-ceed-43ba-9d7a-321b6790dcb3)
+
+
