@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"path/filepath"
 	"regexp"
 )
 
@@ -38,4 +39,9 @@ func IsUrl(url string) bool {
 func IsDoamin(url string) bool {
 	tool := NewRegexpTool(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$`)
 	return tool.IsMatch(url)
+}
+
+// IsPath 判断是否是一个相对路径
+func IsPath(path string) bool {
+	return !filepath.IsAbs(path)
 }

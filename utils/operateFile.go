@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"github.com/gookit/color"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -88,6 +90,7 @@ func ReadLinesFromFile(filename string) ([]string, error) {
 // 1.去重
 // 2.去除空行
 // domain转url
+// 去除URL中多余的斜杠（某些情况下多余的斜杠会导致请求错误）
 func ProcessSourceFile(path string) {
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
@@ -107,6 +110,7 @@ func ProcessSourceFile(path string) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
+			line = DelExtraSlash(line)
 			// 保证line未url格式，加入前缀
 			if IsDoamin(line) {
 				httpUrl, httpsUrl := AddPrefix(line)
@@ -152,4 +156,19 @@ func AddPrefix(url string) (string, string) {
 	httpURL := "http://" + url
 	httpsURL := "https://" + url
 	return httpURL, httpsURL
+}
+
+// DelExtraSlash 去除多余的斜杠
+func DelExtraSlash(url string) string {
+	re := regexp.MustCompile(`(https?://)([^/]+)(.*)`)
+	result := re.FindStringSubmatch(url)
+	if result != nil {
+		scheme := result[1]
+		domain := result[2]
+		path2 := result[3]
+		path2 = path.Clean(path2)
+		return scheme + domain + path2
+	} else {
+		return url
+	}
 }

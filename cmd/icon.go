@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -43,13 +44,13 @@ var iconCmd = &cobra.Command{
 		iconParameter.proxy, _ = cmd.Flags().GetString("proxy")
 		iconParameter.timeout, _ = cmd.Flags().GetInt("timeout")
 		iconParameter.thread, _ = cmd.Flags().GetInt("thread")
-		iconParameter.isClean, _ = cmd.Flags().GetBool("clean")
+		// iconParameter.isClean, _ = cmd.Flags().GetBool("clean")
 		if iconParameter.url != "" {
 			isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter))
 			if isSurvive && htmlDocument.Icon != "" {
 				GetIcon(iconParameter, htmlDocument)
 			} else {
-				color.Warn.Println(iconParameter.url + "未在此找到icon")
+				color.Warn.Println(iconParameter.url + " 未在此找到icon")
 			}
 			return
 		}
@@ -61,6 +62,18 @@ var iconCmd = &cobra.Command{
 
 func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 	if htmlDocument.Icon != "" {
+		// 特殊情况，不包含图片
+		flag := false
+		for _, fileType := range utils.ImgFileTypes {
+			if strings.Contains(htmlDocument.Icon, fileType) {
+				flag = true
+			}
+		}
+		if !flag {
+			color.Warn.Println(iconParameter.url + " 未在此找到icon")
+			return
+		}
+
 		// 第一种情况：icon href是一个直接的地址
 		if utils.IsUrl(htmlDocument.Icon) {
 			DownLoadIcon(iconParameter, htmlDocument)
@@ -75,11 +88,25 @@ func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 		// TODO 第三种情况：icon href 是协议的格式
 
 	} else {
-		color.Warn.Println("未在此找到icon")
+		color.Warn.Println(iconParameter.url + " 未在此找到icon")
+		return
 	}
 }
 
 func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
+	// 去除多余的空行
+	htmlDocument.Icon = utils.DelExtraSlash(htmlDocument.Icon)
+	ask := utils.Ask{}
+	ask.Url = htmlDocument.Icon
+	ask.Proxy = iconParameter.proxy
+	ask.Timeout = iconParameter.timeout
+	resp := utils.Outsourcing(ask)
+
+	if resp != nil && resp.StatusCode != 200 {
+		color.Warn.Println(iconParameter.url + " 找到icon标识，但是图标已经破损")
+		return
+	}
+
 	// 创建图片流
 	iconDownloadPath := utils.ResultLogName + "/icon/" + utils.GetDomain(iconParameter.url) + string('.') + utils.GetSuffix(htmlDocument.Icon)
 
@@ -102,18 +129,14 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 		}
 	}(out)
 
-	ask := utils.Ask{}
-	ask.Url = htmlDocument.Icon
-	ask.Proxy = iconParameter.proxy
-	ask.Timeout = iconParameter.timeout
-	resp := utils.Outsourcing(ask)
-
-	// 写入图片流
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		color.Error.Println("icon下载失败")
+	if resp != nil {
+		// 写入图片流
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			color.Error.Println("icon下载失败")
+		}
+		color.Success.Println("icon已下载到：" + iconDownloadPath)
 	}
-	color.Success.Println("icon已下载到：" + iconDownloadPath)
 }
 
 // GetIconByFile 批量提取icon
@@ -145,7 +168,7 @@ func GetIconByFile(iconParameter IconParameter) {
 					GetIcon(iconParameter2, htmlDocument)
 					mu.Unlock() // 解锁
 				} else {
-					color.Warn.Println(iconParameter.url + "未在此找到icon")
+					color.Warn.Println(url + " 未在此找到icon")
 				}
 			}
 		}()
