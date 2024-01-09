@@ -102,6 +102,7 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 	ask.Timeout = iconParameter.timeout
 	resp := utils.Outsourcing(ask)
 
+	// TODO 修复icon路径访问302跳转200误判为icon的bug
 	//respTmp := resp
 	//
 	//// 修复icon路径访问失效的bug
@@ -148,9 +149,11 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 		color.Success.Println("icon已下载到：" + iconDownloadPath)
 	}
 
-	err = resp.Body.Close()
-	if err != nil {
-		return
+	if resp != nil {
+		err = resp.Body.Close()
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -166,7 +169,7 @@ func GetIconByFile(iconParameter IconParameter) {
 	threadNum := iconParameter.thread
 
 	var wg sync.WaitGroup
-	var mu sync.Mutex // 互斥锁
+	//var mu sync.Mutex // 互斥锁
 	urlChan := make(chan string)
 
 	for i := 0; i < threadNum; i++ {
@@ -179,9 +182,9 @@ func GetIconByFile(iconParameter IconParameter) {
 				iconParameter2.url = url
 				isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter2))
 				if isSurvive && htmlDocument.Icon != "" {
-					mu.Lock() // 加锁
+					//mu.Lock() // 加锁
 					GetIcon(iconParameter2, htmlDocument)
-					mu.Unlock() // 解锁
+					//mu.Unlock() // 解锁
 				} else {
 					color.Warn.Println(url + " 未在此找到icon")
 				}

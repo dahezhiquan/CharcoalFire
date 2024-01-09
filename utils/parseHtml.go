@@ -14,11 +14,11 @@ type HtmlDocument struct {
 	Icon  string
 }
 
-func GetHtmlDocument(resp *http.Response) (htmlDocument HtmlDocument) {
+func GetHtmlDocument(url string, resp *http.Response) (htmlDocument HtmlDocument) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		color.Warn.Println("目标节点解析失败")
+		color.Warn.Println(url + " 目标节点解析失败")
 		return HtmlDocument{}
 	}
 
