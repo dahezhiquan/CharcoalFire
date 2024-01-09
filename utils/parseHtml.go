@@ -2,7 +2,6 @@ package utils
 
 import (
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gookit/color"
 	"net/http"
 	"strings"
 )
@@ -14,11 +13,13 @@ type HtmlDocument struct {
 	Icon  string
 }
 
+var Lparsehtml = GetSlog("parse")
+
 func GetHtmlDocument(url string, resp *http.Response) (htmlDocument HtmlDocument) {
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		color.Warn.Println(url + " 目标节点解析失败")
+		Lparsehtml.Error(url + " 目标节点解析失败")
 		return HtmlDocument{}
 	}
 

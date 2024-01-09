@@ -29,7 +29,19 @@ func GetSlog(type2 string) *slog.Logger {
 
 func GetSkin(type2 string) string {
 	if type2 == "icon" {
-		return "\033[35m" + type2 + "\033[0m" // 紫色
+		return "\033[34m" + type2 + "\033[0m" // 紫色
+	}
+	if type2 == "survive" {
+		return "\033[95m" + type2 + "\033[0m" // 粉色
+	}
+	if type2 == "net" {
+		return "\033[33m" + type2 + "\033[0m" // 黄色
+	}
+	if type2 == "file" {
+		return "\033[90m" + type2 + "\033[0m" // 深灰色
+	}
+	if type2 == "parse" {
+		return "\033[97m" + type2 + "\033[0m" // 亮白
 	}
 	return type2
 }

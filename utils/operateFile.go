@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bufio"
-	"github.com/gookit/color"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,11 +9,13 @@ import (
 	"time"
 )
 
+var Lw = GetSlog("file")
+
 // WriteFile 向文件中写入
 func WriteFile(path string, content []string) {
 	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
 	if err != nil {
-		color.Error.Println("日志文件创建失败")
+		Lw.Fatal(path + " 文件创建失败")
 	}
 
 	// 构建文件名
@@ -23,19 +24,19 @@ func WriteFile(path string, content []string) {
 
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		color.Error.Println("日志文件打开失败")
+		Lw.Fatal(filePath + " 文件打开失败")
 	}
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			color.Warn.Println("日志文件未正常关闭")
+			Lw.Warning(filePath + " 文件未正常关闭")
 		}
 	}(file)
 
 	for _, line := range content {
 		_, err = file.WriteString(line + "\n")
 		if err != nil {
-			color.Error.Println("结果写入日志失败")
+			Lw.Fatal(filePath + " 结果写入文件失败")
 		}
 	}
 }
@@ -46,18 +47,18 @@ func ClearFile(path string) {
 	filePath := filepath.Join(ResultLogName, path, currentTime+".txt")
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_TRUNC, 0666)
 	if err != nil {
-		color.Error.Println("日志文件打开失败")
+		Lw.Fatal(filePath + " 文件打开失败")
 	}
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			color.Warn.Println("日志文件未正常关闭")
+			Lw.Warning(filePath + " 文件未正常关闭")
 		}
 	}(file)
 
 	err = file.Truncate(0)
 	if err != nil {
-		color.Error.Println("清空文件失败")
+		Lw.Fatal(filePath + " 清空文件失败")
 	}
 }
 
@@ -92,13 +93,13 @@ func ReadLinesFromFile(filename string) ([]string, error) {
 func ProcessSourceFile(path string) {
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
-		color.Error.Println("文件打开失败")
+		Lw.Fatal(path + " 文件打开失败")
 		return
 	}
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
-			color.Warn.Println("目标文件未正常关闭")
+			Lw.Warning(path + " 文件未正常关闭")
 		}
 	}(file)
 
@@ -120,17 +121,17 @@ func ProcessSourceFile(path string) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		color.Error.Println("读取文件失败")
+		Lw.Fatal(path + " 读取文件失败")
 		return
 	}
 
 	if err := file.Truncate(0); err != nil {
-		color.Error.Println("清空文件失败")
+		Lw.Fatal(path + " 清空文件失败")
 		return
 	}
 
 	if _, err := file.Seek(0, 0); err != nil {
-		color.Error.Println("重定位文件指针失败")
+		Lw.Fatal(path + " 重定位文件指针失败")
 		return
 	}
 
@@ -138,7 +139,7 @@ func ProcessSourceFile(path string) {
 	for line := range uniqueLines {
 		_, err := writer.WriteString(line + "\n")
 		if err != nil {
-			color.Error.Println("文件写入失败")
+			Lw.Fatal(path + " 文件写入失败")
 			return
 		}
 	}

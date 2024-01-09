@@ -2,7 +2,6 @@ package utils
 
 import (
 	"crypto/tls"
-	"github.com/gookit/color"
 	"net/http"
 	"net/url"
 	"time"
@@ -13,6 +12,8 @@ type Ask struct {
 	Timeout int
 	Proxy   string
 }
+
+var Ln = GetSlog("net")
 
 // Outsourcing 发包工具
 func Outsourcing(ask Ask) *http.Response {
@@ -31,7 +32,7 @@ func Outsourcing(ask Ask) *http.Response {
 		if ask.Proxy != "" {
 			proxyURL, err2 := url.Parse(ask.Proxy)
 			if err2 != nil {
-				color.Error.Println("代理解析失败")
+				Ln.Fatal(ask.Proxy + " 代理解析失败")
 				return nil
 			}
 			client = &http.Client{
@@ -47,7 +48,7 @@ func Outsourcing(ask Ask) *http.Response {
 			}
 		}
 		if !flag {
-			color.Error.Println(ask.Url + " 目标连接失败")
+			Ln.Fatal(ask.Url + " 目标连接失败")
 			return nil
 		}
 	}

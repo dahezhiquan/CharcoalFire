@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"CharcoalFire/utils"
-	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
 	"log"
@@ -21,6 +20,8 @@ type Parameter struct {
 	isClean bool
 	thread  int
 }
+
+var Ls = utils.GetSlog("survive")
 
 func init() {
 	ew := &utils.EmptyWriter{}
@@ -60,7 +61,7 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 
 	var isUrl = utils.IsUrl(parameter.url)
 	if !isUrl {
-		color.Error.Println(parameter.url + " 目标不是URL")
+		Ls.Error(parameter.url + " 目标不是URL")
 		return false, utils.HtmlDocument{}
 	}
 
@@ -73,10 +74,10 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 	// 防止空指针问题
 	if resp != nil {
 		if resp.StatusCode == http.StatusOK {
-			color.Success.Println(parameter.url + " 目标存活")
+			Ls.Info(parameter.url + " 目标存活")
 			return true, utils.GetHtmlDocument(parameter.url, resp)
 		} else {
-			color.Danger.Println(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
+			Ls.Error(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 			return false, utils.HtmlDocument{}
 		}
 	} else {
@@ -89,7 +90,7 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	utils.ProcessSourceFile(parameter.file)
 	result, err := utils.ReadLinesFromFile(parameter.file)
 	if err != nil {
-		color.Error.Println("文件解析失败")
+		Ls.Fatal("存活探测列表解析失败")
 		return nil
 	}
 
@@ -139,15 +140,15 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	currentTime := time.Now().Format("20060102150405")
 	filePath := filepath.Join(utils.ResultLogName, "survive", currentTime+".txt")
 	if parameter.isClean {
-		color.Info.Println("过滤者模式已开启，正在去重...")
+		Ls.Debug("过滤者模式已开启，正在去重...")
 		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
 		utils.WriteFile("survive", surviveUrls)
-		color.Success.Println("去重已完成")
-		color.Success.Println("结果已保存到：" + filePath)
+		Ls.Debug("去重已完成")
+		Ls.Info("结果已保存到：" + filePath)
 		return surviveUrls
 	} else {
 		utils.WriteFile("survive", surviveUrls)
-		color.Success.Println("结果已保存到：" + filePath)
+		Ls.Info("结果已保存到：" + filePath)
 		return surviveUrls
 	}
 }

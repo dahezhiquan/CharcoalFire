@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"CharcoalFire/utils"
-	"github.com/gookit/color"
 	"github.com/spf13/cobra"
 	"io"
 	"log"
@@ -20,6 +19,8 @@ type IconParameter struct {
 	isClean bool
 	thread  int
 }
+
+var Lc = utils.GetSlog("icon")
 
 func init() {
 	ew := &utils.EmptyWriter{}
@@ -50,7 +51,7 @@ var iconCmd = &cobra.Command{
 			if isSurvive && htmlDocument.Icon != "" {
 				GetIcon(iconParameter, htmlDocument)
 			} else {
-				color.Warn.Println(iconParameter.url + " 未在此找到icon")
+				Lc.Error(iconParameter.url + " 未在此找到icon")
 			}
 			return
 		}
@@ -70,7 +71,7 @@ func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 			}
 		}
 		if !flag {
-			color.Warn.Println(iconParameter.url + " 未在此找到icon")
+			Lc.Error(iconParameter.url + " 未在此找到icon")
 			return
 		}
 
@@ -88,7 +89,7 @@ func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 		// TODO 第三种情况：icon href 是协议的格式
 
 	} else {
-		color.Warn.Println(iconParameter.url + " 未在此找到icon")
+		Lc.Error(iconParameter.url + " 未在此找到icon")
 		return
 	}
 }
@@ -114,7 +115,7 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 	//}
 
 	if resp != nil && resp.StatusCode != 200 {
-		color.Warn.Println(iconParameter.url + " 找到icon标识，但是图标已经破损")
+		Lc.Error(iconParameter.url + " 找到icon标识，但是图标已经破损")
 		return
 	}
 
@@ -124,19 +125,19 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 	// 创建目录
 	err := os.MkdirAll(filepath.Dir(iconDownloadPath), os.ModePerm)
 	if err != nil {
-		color.Error.Println("目录创建失败")
+		Lc.Fatal("icon保存目录创建失败")
 		return
 	}
 
 	out, err := os.Create(iconDownloadPath) // 保存到本地的文件名
 	if err != nil {
-		color.Error.Println("日志文件创建失败")
+		Lc.Fatal(iconParameter.url + " icon保存文件创建失败")
 		return
 	}
 	defer func(out *os.File) {
 		err := out.Close()
 		if err != nil {
-			color.Warn.Println("日志文件未正常关闭")
+			Lc.Warning(iconParameter.url + " icon保存文件未正常关闭")
 		}
 	}(out)
 
@@ -144,9 +145,9 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 		// 写入图片流
 		_, err = io.Copy(out, resp.Body)
 		if err != nil {
-			color.Error.Println("icon下载失败")
+			Lc.Fatal(iconParameter.url + " icon下载失败")
 		}
-		color.Success.Println("icon已下载到：" + iconDownloadPath)
+		Lc.Info(iconParameter.url + " icon已下载到：" + iconDownloadPath)
 	}
 
 	if resp != nil {
@@ -163,7 +164,7 @@ func GetIconByFile(iconParameter IconParameter) {
 	utils.ProcessSourceFile(iconParameter.file)
 	result, err := utils.ReadLinesFromFile(iconParameter.file)
 	if err != nil {
-		color.Error.Println("文件解析失败")
+		Lc.Fatal("icon列表文件解析失败")
 	}
 
 	threadNum := iconParameter.thread
@@ -186,7 +187,7 @@ func GetIconByFile(iconParameter IconParameter) {
 					GetIcon(iconParameter2, htmlDocument)
 					//mu.Unlock() // 解锁
 				} else {
-					color.Warn.Println(url + " 未在此找到icon")
+					Lc.Error(url + " 未在此找到icon")
 				}
 			}
 		}()

@@ -4,7 +4,7 @@ package utils
 
 const Author = `dahezhiquan - wechat`
 
-const Version = "CharcoalFire Version 0.1.1"
+const Version = "CharcoalFire Version 1.1.1"
 
 const Banner = `
  ________  ___  ___  ________  ________  ________  ________  ________  ___       ________ ___  ________  _______      
