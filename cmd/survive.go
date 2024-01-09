@@ -13,12 +13,13 @@ import (
 )
 
 type Parameter struct {
-	url     string
-	timeout int
-	proxy   string
-	file    string
-	isClean bool
-	thread  int
+	url      string
+	timeout  int
+	proxy    string
+	file     string
+	isClean  bool
+	thread   int
+	isDoamin bool
 }
 
 var Ls = utils.GetSlog("survive")
@@ -33,6 +34,7 @@ func init() {
 	surviveCmd.Flags().IntP("timeout", "t", 10, "超时时间")
 	surviveCmd.Flags().StringP("proxy", "p", "", "代理地址")
 	surviveCmd.Flags().BoolP("clean", "c", false, "过滤者模式（目标相同title只保留一个）")
+	surviveCmd.Flags().BoolP("domain", "d", false, "以domain格式输出结果")
 }
 
 var surviveCmd = &cobra.Command{
@@ -46,6 +48,7 @@ var surviveCmd = &cobra.Command{
 		parameter.timeout, _ = cmd.Flags().GetInt("timeout")
 		parameter.thread, _ = cmd.Flags().GetInt("thread")
 		parameter.isClean, _ = cmd.Flags().GetBool("clean")
+		parameter.isDoamin, _ = cmd.Flags().GetBool("domain")
 		if parameter.url != "" {
 			SurviveCmd(parameter)
 			return
@@ -142,12 +145,12 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	if parameter.isClean {
 		Ls.Debug("过滤者模式已开启，正在去重...")
 		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
-		utils.WriteFile("survive", surviveUrls)
+		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 		Ls.Debug("去重已完成")
 		Ls.Info("结果已保存到：" + filePath)
 		return surviveUrls
 	} else {
-		utils.WriteFile("survive", surviveUrls)
+		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 		Ls.Info("结果已保存到：" + filePath)
 		return surviveUrls
 	}

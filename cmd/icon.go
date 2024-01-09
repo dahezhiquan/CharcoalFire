@@ -12,12 +12,13 @@ import (
 )
 
 type IconParameter struct {
-	url     string
-	timeout int
-	proxy   string
-	file    string
-	isClean bool
-	thread  int
+	url      string
+	timeout  int
+	proxy    string
+	file     string
+	isClean  bool
+	thread   int
+	isDoamin bool
 }
 
 var Lc = utils.GetSlog("icon")

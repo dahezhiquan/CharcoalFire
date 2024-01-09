@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,7 +13,7 @@ import (
 var Lw = GetSlog("file")
 
 // WriteFile 向文件中写入
-func WriteFile(path string, content []string) {
+func WriteFile(path string, content []string, isDoamin bool) {
 	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
 	if err != nil {
 		Lw.Fatal(path + " 文件创建失败")
@@ -34,7 +35,14 @@ func WriteFile(path string, content []string) {
 	}(file)
 
 	for _, line := range content {
-		_, err = file.WriteString(line + "\n")
+		// 判断是否输出为domain格式
+		if !isDoamin {
+			_, err = file.WriteString(line + "\n")
+		} else {
+			u, _ := url.Parse(line)
+			domain := u.Hostname()
+			_, err = file.WriteString(domain + "\n")
+		}
 		if err != nil {
 			Lw.Fatal(filePath + " 结果写入文件失败")
 		}
