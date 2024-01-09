@@ -94,13 +94,23 @@ func GetIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
 }
 
 func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) {
-	// 去除多余的空行
+	// 去除多余的斜杠
 	htmlDocument.Icon = utils.DelExtraSlash(htmlDocument.Icon)
 	ask := utils.Ask{}
 	ask.Url = htmlDocument.Icon
 	ask.Proxy = iconParameter.proxy
 	ask.Timeout = iconParameter.timeout
 	resp := utils.Outsourcing(ask)
+
+	//respTmp := resp
+	//
+	//// 修复icon路径访问失效的bug
+	//body, _ := io.ReadAll(respTmp.Body)
+	//sourceCode := string(body)
+	//if strings.Contains(sourceCode, "html>") {
+	//	color.Warn.Println(iconParameter.url + " 未在此找到icon")
+	//	return
+	//}
 
 	if resp != nil && resp.StatusCode != 200 {
 		color.Warn.Println(iconParameter.url + " 找到icon标识，但是图标已经破损")
@@ -136,6 +146,11 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 			color.Error.Println("icon下载失败")
 		}
 		color.Success.Println("icon已下载到：" + iconDownloadPath)
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		return
 	}
 }
 

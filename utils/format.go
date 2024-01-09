@@ -18,17 +18,9 @@ func GetDomain(urlp string) string {
 
 // GetSuffix 提取文件后缀
 func GetSuffix(path string) string {
-	lastDotIndex := strings.LastIndex(path, ".")
-	if lastDotIndex != -1 && lastDotIndex < len(path)-1 {
-		substringAfterLastDot := path[lastDotIndex+1:]
-		splitResult := strings.Split(substringAfterLastDot, "?")
-		if len(splitResult) > 1 {
-			substringBeforeQuestionMark := splitResult[0]
-			return substringBeforeQuestionMark
-		} else {
-			return substringAfterLastDot
-		}
-	} else {
-		return ""
-	}
+	splitResult := strings.Split(path, "?")
+	lastDotIndex := strings.LastIndex(splitResult[0], ".")
+	substringAfterLastDot := path[lastDotIndex+1:]
+	res := strings.Split(substringAfterLastDot, "?")
+	return res[0]
 }
