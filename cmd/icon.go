@@ -48,7 +48,9 @@ var iconCmd = &cobra.Command{
 		iconParameter.thread, _ = cmd.Flags().GetInt("thread")
 		// iconParameter.isClean, _ = cmd.Flags().GetBool("clean")
 		if iconParameter.url != "" {
-			isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter))
+			parameter := Parameter{}
+			utils.Copy(iconParameter, parameter)
+			isSurvive, htmlDocument := SurviveCmd(parameter)
 			if isSurvive && htmlDocument.Icon != "" {
 				GetIcon(iconParameter, htmlDocument)
 			} else {
