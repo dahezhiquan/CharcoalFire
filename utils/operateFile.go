@@ -169,6 +169,10 @@ func ProcessSourceFile(path string) {
 					uniqueLines[httpUrl] = true
 					uniqueLines[httpsUrl] = true
 				}
+			} else if IsIpAddr(line) {
+				httpUrl, httpsUrl := AddPrefix(line)
+				uniqueLines[httpUrl] = true
+				uniqueLines[httpsUrl] = true
 			} else {
 				uniqueLines[line] = true
 			}

@@ -75,3 +75,18 @@ func IsJspWeb(content string) bool {
 	tool := NewRegexpTool(`<a\s+[^>]*href=(.*\.jsp)[^>]*>`)
 	return tool.IsMatch(content)
 }
+
+func IsIpAddr(ip string) bool {
+	ipRegex := `^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$`
+	ipWithPortRegex := `^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:\d+$`
+
+	matchIP, _ := regexp.MatchString(ipRegex, ip)
+	if matchIP {
+		return true
+	}
+	matchIPWithPort, _ := regexp.MatchString(ipWithPortRegex, ip)
+	if matchIPWithPort {
+		return true
+	}
+	return false
+}
