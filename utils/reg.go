@@ -45,3 +45,23 @@ func IsDoamin(url string) bool {
 func IsPath(path string) bool {
 	return !filepath.IsAbs(path)
 }
+
+func IsPhpWeb(content string) bool {
+	tool := NewRegexpTool(`<a\s+[^>]*href=(.*\.php)[^>]*>`)
+	return tool.IsMatch(content)
+}
+
+func IsAspWeb(content string) bool {
+	tool := NewRegexpTool(`<a\s+[^>]*href=(.*\.asp)[^>]*>`)
+	return tool.IsMatch(content)
+}
+
+func IsAspxWeb(content string) bool {
+	tool := NewRegexpTool(`<a\s+[^>]*href=(.*\.aspx)[^>]*>`)
+	return tool.IsMatch(content)
+}
+
+func IsJspWeb(content string) bool {
+	tool := NewRegexpTool(`<a\s+[^>]*href=(.*\.jsp)[^>]*>`)
+	return tool.IsMatch(content)
+}

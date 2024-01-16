@@ -50,6 +50,8 @@ var fisherCmd = &cobra.Command{
 }
 
 // 1.目标响应包的X-Powered-By字段判断
+// 2.通过Set-Cookie进行识别，Set-Cookie中包含PHPSSIONID说明是php、包含JSESSIONID说明是java、包含ASP.NET_SessionId说明是aspx
+// 3.通过爬虫解析php链接特征
 
 func GetPhpByFile(fisherParameter FisherParameter) {
 
@@ -88,6 +90,24 @@ func GetPhpByFile(fisherParameter FisherParameter) {
 						}
 						Lf.Info("发现PHP资产：" + url + " PHP Version：" + version)
 						phpUrlsInfo[url] = version
+						continue
+					}
+
+					// 通过Set-Cookie进行识别
+					cookies := resp.Header.Get("Set-Cookie")
+					if strings.Contains(cookies, "PHPSSIONID") {
+						Lf.Info("发现PHP资产：" + url + " PHP Version：未知")
+						phpUrlsInfo[url] = "未知"
+						continue
+					}
+
+					// 通过爬虫解析php链接特征
+					body, _ := io.ReadAll(resp.Body)
+					htmlContent := string(body)
+					if utils.IsPhpWeb(htmlContent) {
+						Lf.Info("发现PHP资产：" + url + " PHP Version：未知")
+						phpUrlsInfo[url] = "未知"
+						continue
 					}
 				}
 			}
