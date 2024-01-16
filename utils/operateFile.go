@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -130,7 +131,8 @@ func ReadLinesFromFile(filename string) ([]string, error) {
 // ProcessSourceFile 对目标文件的内容提炼，目前实现
 // 1.去重
 // 2.去除空行
-// domain转url
+// 3.domain转url
+// 4.CIDR格式的支持
 func ProcessSourceFile(path string) {
 	file, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
@@ -150,11 +152,23 @@ func ProcessSourceFile(path string) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			// 保证line未url格式，加入前缀
+			// 保证line为url格式，加入前缀
 			if IsDoamin(line) {
 				httpUrl, httpsUrl := AddPrefix(line)
 				uniqueLines[httpUrl] = true
 				uniqueLines[httpsUrl] = true
+			} else if IsCIDR(line) {
+				// CIDR转换
+				ip, ipnet, _ := net.ParseCIDR(line)
+				var ips []string
+				for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+					ips = append(ips, ip.String())
+				}
+				for _, ip := range ips {
+					httpUrl, httpsUrl := AddPrefix(ip)
+					uniqueLines[httpUrl] = true
+					uniqueLines[httpsUrl] = true
+				}
 			} else {
 				uniqueLines[line] = true
 			}
@@ -187,6 +201,16 @@ func ProcessSourceFile(path string) {
 	err = writer.Flush()
 	if err != nil {
 		return
+	}
+}
+
+// CIDR解析的支持方法
+func inc(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
 	}
 }
 

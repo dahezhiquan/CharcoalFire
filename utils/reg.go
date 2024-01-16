@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"net"
 	"path/filepath"
 	"regexp"
 )
@@ -44,6 +45,15 @@ func IsDoamin(url string) bool {
 // IsPath 判断是否是一个相对路径
 func IsPath(path string) bool {
 	return !filepath.IsAbs(path)
+}
+
+func IsCIDR(ips string) bool {
+	_, _, err := net.ParseCIDR(ips)
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
 }
 
 func IsPhpWeb(content string) bool {
