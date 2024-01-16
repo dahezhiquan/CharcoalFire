@@ -43,5 +43,8 @@ func GetSkin(type2 string) string {
 	if type2 == "parse" {
 		return "\033[97m" + type2 + "\033[0m" // 亮白
 	}
+	if type2 == "fisher" {
+		return "\033[35m" + type2 + "\033[0m" // 紫色2
+	}
 	return type2
 }

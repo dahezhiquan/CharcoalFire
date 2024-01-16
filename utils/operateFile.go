@@ -49,6 +49,39 @@ func WriteFile(path string, content []string, isDoamin bool) {
 	}
 }
 
+// WriteFileBySuffix 向文件中写入 包含后缀信息
+func WriteFileBySuffix(path string, content []string, suffix []string) {
+	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
+	if err != nil {
+		Lw.Fatal(path + " 文件创建失败")
+	}
+
+	// 构建文件名
+	currentTime := time.Now().Format("20060102150405")
+	filePath := filepath.Join(ResultLogName, path, currentTime+".txt")
+
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		Lw.Fatal(filePath + " 文件打开失败")
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			Lw.Warning(filePath + " 文件未正常关闭")
+		}
+	}(file)
+
+	for i, line := range content {
+		// 判断是否输出为domain格式
+		_, err = file.WriteString(line + " " + suffix[i] + "\n")
+
+		if err != nil {
+			Lw.Fatal(filePath + " 结果写入文件失败")
+		}
+	}
+	Lw.Info("结果已保存到：" + filePath)
+}
+
 // ClearFile 清空文件内容
 func ClearFile(path string) {
 	currentTime := time.Now().Format("20060102")

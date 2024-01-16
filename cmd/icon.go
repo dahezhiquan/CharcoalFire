@@ -12,13 +12,12 @@ import (
 )
 
 type IconParameter struct {
-	url      string
-	timeout  int
-	proxy    string
-	file     string
-	isClean  bool
-	thread   int
-	isDoamin bool
+	url     string
+	timeout int
+	proxy   string
+	file    string
+	isClean bool
+	thread  int
 }
 
 var Lc = utils.GetSlog("icon")
@@ -184,7 +183,9 @@ func GetIconByFile(iconParameter IconParameter) {
 				var iconParameter2 IconParameter
 				iconParameter2 = iconParameter
 				iconParameter2.url = url
-				isSurvive, htmlDocument := SurviveCmd(Parameter(iconParameter2))
+				parameter := Parameter{}
+				utils.Copy(iconParameter2, parameter)
+				isSurvive, htmlDocument := SurviveCmd(parameter)
 				if isSurvive && htmlDocument.Icon != "" {
 					//mu.Lock() // 加锁
 					GetIcon(iconParameter2, htmlDocument)

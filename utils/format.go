@@ -24,3 +24,9 @@ func GetSuffix(path string) string {
 	res := strings.Split(substringAfterLastDot, "?")
 	return res[0]
 }
+
+// GetLanVersion X-Powered-By字段提取出脚本语言+版本号
+func GetLanVersion(total string) []string {
+	res := strings.Split(total, "/")
+	return res
+}
