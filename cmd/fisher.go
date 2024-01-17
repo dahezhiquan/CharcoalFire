@@ -18,6 +18,7 @@ type FisherParameter struct {
 	isPHP   bool
 	isAsp   bool
 	isJsp   bool
+	angels  string
 }
 
 var Lf = utils.GetSlog("fisher")
@@ -33,6 +34,7 @@ func init() {
 	fisherCmd.Flags().BoolP("php", "q", false, "导出所有的PHP资产（按照PHP版本号从小到大）")
 	fisherCmd.Flags().BoolP("asp", "a", false, "导出所有的ASP资产")
 	fisherCmd.Flags().BoolP("jsp", "j", false, "导出所有的JSP资产")
+	fisherCmd.Flags().StringP("angel", "s", "", "指定关键字提取资产（多个关键字分号;隔开）")
 }
 
 var fisherCmd = &cobra.Command{
@@ -47,16 +49,19 @@ var fisherCmd = &cobra.Command{
 		fisherParameter.isPHP, _ = cmd.Flags().GetBool("php")
 		fisherParameter.isAsp, _ = cmd.Flags().GetBool("asp")
 		fisherParameter.isJsp, _ = cmd.Flags().GetBool("jsp")
+		fisherParameter.angels, _ = cmd.Flags().GetString("angel")
 		if fisherParameter.file != "" && fisherParameter.isPHP {
 			GetPhpByFile(fisherParameter)
-			return
 		}
 		if fisherParameter.file != "" && fisherParameter.isAsp {
 			GetAspByFile(fisherParameter)
-			return
 		}
 		if fisherParameter.file != "" && fisherParameter.isJsp {
 			GetJspByFile(fisherParameter)
+			return
+		}
+		if fisherParameter.file != "" && fisherParameter.angels != "" {
+			GetAngelByFile(fisherParameter)
 			return
 		}
 	},
@@ -257,6 +262,56 @@ func GetJspByFile(fisherParameter FisherParameter) {
 	wg.Wait()
 
 	utils.WriteFile("fisher", jspUrls, false)
+}
+
+func GetAngelByFile(fisherParameter FisherParameter) {
+	// 先对文件进行处理
+	utils.ProcessSourceFile(fisherParameter.file)
+	result, err := utils.ReadLinesFromFile(fisherParameter.file)
+	if err != nil {
+		Lf.Fatal("fisherman列表文件解析失败")
+	}
+	threadNum := fisherParameter.thread
+
+	var angelUrls []string
+
+	var wg sync.WaitGroup
+	urlChan := make(chan string)
+
+	for i := 0; i < threadNum; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for url := range urlChan {
+				ask := utils.Ask{}
+				ask.Url = url
+				ask.Proxy = fisherParameter.proxy
+				ask.Timeout = fisherParameter.timeout
+				resp := utils.Outsourcing(ask)
+				if resp != nil {
+					body, _ := io.ReadAll(resp.Body)
+					htmlContent := string(body)
+					spRes := strings.Split(fisherParameter.angels, string(';'))
+					for _, angel := range spRes {
+						if strings.Contains(htmlContent, angel) {
+							Lf.Info("发现指定关键字 " + angel + " 资产：" + url)
+							angelUrls = append(angelUrls, url)
+							break
+						}
+					}
+				}
+			}
+		}()
+	}
+
+	// 将url发送到urlChan供消费者goroutine处理
+	for _, url := range result {
+		urlChan <- url
+	}
+	close(urlChan)
+	wg.Wait()
+
+	utils.WriteFile("fisher/angel", angelUrls, false)
 }
 
 type someVersion struct {
