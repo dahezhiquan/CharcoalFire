@@ -48,6 +48,7 @@ func WriteFile(path string, content []string, isDoamin bool) {
 			Lw.Fatal(filePath + " 结果写入文件失败")
 		}
 	}
+	Lw.Info("结果已保存到：" + filePath)
 }
 
 // WriteFileBySuffix 向文件中写入 包含后缀信息

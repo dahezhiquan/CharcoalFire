@@ -6,10 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"sync"
-	"time"
 )
 
 type Parameter struct {
@@ -140,18 +138,14 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	close(urlChan)
 	wg.Wait()
 
-	currentTime := time.Now().Format("20060102150405")
-	filePath := filepath.Join(utils.ResultLogName, "survive", currentTime+".txt")
 	if parameter.isClean {
 		Ls.Debug("过滤者模式已开启，正在去重...")
 		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
-		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 		Ls.Debug("去重已完成")
-		Ls.Info("结果已保存到：" + filePath)
+		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 		return surviveUrls
 	} else {
 		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
-		Ls.Info("结果已保存到：" + filePath)
 		return surviveUrls
 	}
 }

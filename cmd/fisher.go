@@ -16,6 +16,8 @@ type FisherParameter struct {
 	file    string
 	thread  int
 	isPHP   bool
+	isAsp   bool
+	isJsp   bool
 }
 
 var Lf = utils.GetSlog("fisher")
@@ -29,7 +31,8 @@ func init() {
 	fisherCmd.Flags().IntP("timeout", "t", 10, "超时时间")
 	fisherCmd.Flags().StringP("proxy", "p", "", "代理地址")
 	fisherCmd.Flags().BoolP("php", "q", false, "导出所有的PHP资产（按照PHP版本号从小到大）")
-
+	fisherCmd.Flags().BoolP("asp", "a", false, "导出所有的ASP资产")
+	fisherCmd.Flags().BoolP("jsp", "j", false, "导出所有的JSP资产")
 }
 
 var fisherCmd = &cobra.Command{
@@ -42,8 +45,18 @@ var fisherCmd = &cobra.Command{
 		fisherParameter.timeout, _ = cmd.Flags().GetInt("timeout")
 		fisherParameter.thread, _ = cmd.Flags().GetInt("thread")
 		fisherParameter.isPHP, _ = cmd.Flags().GetBool("php")
+		fisherParameter.isAsp, _ = cmd.Flags().GetBool("asp")
+		fisherParameter.isJsp, _ = cmd.Flags().GetBool("jsp")
 		if fisherParameter.file != "" && fisherParameter.isPHP {
 			GetPhpByFile(fisherParameter)
+			return
+		}
+		if fisherParameter.file != "" && fisherParameter.isAsp {
+			GetAspByFile(fisherParameter)
+			return
+		}
+		if fisherParameter.file != "" && fisherParameter.isJsp {
+			GetJspByFile(fisherParameter)
 			return
 		}
 	},
@@ -123,6 +136,127 @@ func GetPhpByFile(fisherParameter FisherParameter) {
 
 	sortVersion(phpUrlsInfo)
 
+}
+
+func GetAspByFile(fisherParameter FisherParameter) {
+
+	// 先对文件进行处理
+	utils.ProcessSourceFile(fisherParameter.file)
+	result, err := utils.ReadLinesFromFile(fisherParameter.file)
+	if err != nil {
+		Lf.Fatal("fisherman列表文件解析失败")
+	}
+	threadNum := fisherParameter.thread
+
+	var aspUrls []string
+
+	var wg sync.WaitGroup
+	urlChan := make(chan string)
+
+	for i := 0; i < threadNum; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for url := range urlChan {
+				ask := utils.Ask{}
+				ask.Url = url
+				ask.Proxy = fisherParameter.proxy
+				ask.Timeout = fisherParameter.timeout
+				resp := utils.Outsourcing(ask)
+				if resp != nil {
+					// 目标响应包的X-Powered-By字段判断
+					phpVersion := resp.Header.Get("X-Powered-By")
+					if strings.Contains(phpVersion, "ASP") {
+						aspUrls = append(aspUrls, url)
+						Lf.Info("发现ASP资产：" + url)
+					}
+
+					// 通过Set-Cookie进行识别
+					cookies := resp.Header.Get("Set-Cookie")
+					if strings.Contains(cookies, "ASP.NET_SessionId") {
+						Lf.Info("发现ASP资产：" + url)
+						aspUrls = append(aspUrls, url)
+						continue
+					}
+
+					// 通过爬虫解析asp链接特征
+					body, _ := io.ReadAll(resp.Body)
+					htmlContent := string(body)
+					if utils.IsAspWeb(htmlContent) {
+						Lf.Info("发现ASP资产：" + url)
+						aspUrls = append(aspUrls, url)
+						continue
+					}
+				}
+			}
+		}()
+	}
+
+	// 将url发送到urlChan供消费者goroutine处理
+	for _, url := range result {
+		urlChan <- url
+	}
+	close(urlChan)
+	wg.Wait()
+
+	utils.WriteFile("fisher", aspUrls, false)
+}
+
+func GetJspByFile(fisherParameter FisherParameter) {
+
+	// 先对文件进行处理
+	utils.ProcessSourceFile(fisherParameter.file)
+	result, err := utils.ReadLinesFromFile(fisherParameter.file)
+	if err != nil {
+		Lf.Fatal("fisherman列表文件解析失败")
+	}
+	threadNum := fisherParameter.thread
+
+	var jspUrls []string
+
+	var wg sync.WaitGroup
+	urlChan := make(chan string)
+
+	for i := 0; i < threadNum; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for url := range urlChan {
+				ask := utils.Ask{}
+				ask.Url = url
+				ask.Proxy = fisherParameter.proxy
+				ask.Timeout = fisherParameter.timeout
+				resp := utils.Outsourcing(ask)
+				if resp != nil {
+					// 目标响应包的X-Powered-By字段判断
+					// 通过Set-Cookie进行识别
+					cookies := resp.Header.Get("Set-Cookie")
+					if strings.Contains(cookies, "JSESSIONID") {
+						Lf.Info("发现JSP资产：" + url)
+						jspUrls = append(jspUrls, url)
+						continue
+					}
+					// 通过爬虫解析jsp链接特征
+					body, _ := io.ReadAll(resp.Body)
+					htmlContent := string(body)
+					if utils.IsJspWeb(htmlContent) {
+						Lf.Info("发现JSP资产：" + url)
+						jspUrls = append(jspUrls, url)
+						continue
+					}
+				}
+			}
+		}()
+	}
+
+	// 将url发送到urlChan供消费者goroutine处理
+	for _, url := range result {
+		urlChan <- url
+	}
+	close(urlChan)
+	wg.Wait()
+
+	utils.WriteFile("fisher", jspUrls, false)
 }
 
 type someVersion struct {
