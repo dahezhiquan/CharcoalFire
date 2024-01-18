@@ -5,7 +5,9 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 )
@@ -18,6 +20,7 @@ type Parameter struct {
 	isClean  bool
 	thread   int
 	isDoamin bool
+	isClear  bool
 }
 
 var Ls = utils.GetSlog("survive")
@@ -33,6 +36,7 @@ func init() {
 	surviveCmd.Flags().StringP("proxy", "p", "", "代理地址")
 	surviveCmd.Flags().BoolP("clean", "c", false, "过滤者模式（目标相同title只保留一个）")
 	surviveCmd.Flags().BoolP("domain", "d", false, "以domain格式输出结果")
+	surviveCmd.Flags().BoolP("clear", "k", false, "智能去除解析多个IP地址的目标")
 }
 
 var surviveCmd = &cobra.Command{
@@ -47,6 +51,7 @@ var surviveCmd = &cobra.Command{
 		parameter.thread, _ = cmd.Flags().GetInt("thread")
 		parameter.isClean, _ = cmd.Flags().GetBool("clean")
 		parameter.isDoamin, _ = cmd.Flags().GetBool("domain")
+		parameter.isClear, _ = cmd.Flags().GetBool("clear")
 		if parameter.url != "" {
 			SurviveCmd(parameter)
 			return
@@ -111,10 +116,10 @@ func SurviveCmdByFile(parameter Parameter) []string {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for url := range urlChan {
+			for target := range urlChan {
 				var parameter2 Parameter
 				parameter2 = parameter
-				parameter2.url = url
+				parameter2.url = target
 				isSurvive, htmlDocument := SurviveCmd(parameter2)
 				if isSurvive {
 					mu.Lock() // 加锁
@@ -132,8 +137,8 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	}
 
 	// 将url发送到urlChan供消费者goroutine处理
-	for _, url := range result {
-		urlChan <- url
+	for _, target := range result {
+		urlChan <- target
 	}
 	close(urlChan)
 	wg.Wait()
@@ -141,14 +146,42 @@ func SurviveCmdByFile(parameter Parameter) []string {
 	if parameter.isClean {
 		Ls.Debug("过滤者模式已开启，正在去重...")
 		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
-		Ls.Debug("去重已完成")
-
-		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
-		return surviveUrls
-	} else {
-		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
-		return surviveUrls
+		Ls.Debug("去重已完成，共去除条数：")
 	}
+
+	if parameter.isClear {
+
+		Ls.Debug("智能去除多IP目标已开启，正在去除...")
+
+		urlChan2 := make(chan string)
+
+		for i := 0; i < parameter.thread; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for target := range urlChan2 {
+					if IsMultipleIPs(target) {
+						mu.Lock() // 加锁
+						Ls.Info("发现多IP解析目标：" + target)
+						surviveUrls = utils.RemoveElementSlice(surviveUrls, target)
+						mu.Unlock() // 解锁
+					}
+				}
+			}()
+		}
+
+		// 将url发送到urlChan供消费者goroutine处理
+		for _, target := range surviveUrls {
+			urlChan2 <- target
+		}
+		close(urlChan2)
+		wg.Wait()
+
+		Ls.Debug("去除已完成")
+	}
+	println(len(surviveUrls))
+	utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
+	return surviveUrls
 }
 
 // DeduplicateDictValues 去重字典的值，即相同的值只保留一个，并将去重后的键生成一个新的切片
@@ -164,4 +197,24 @@ func DeduplicateDictValues(surviveUrlsInfo map[string]string) []string {
 	}
 
 	return uniqueKeys
+}
+
+// IsMultipleIPs 智能去除多IP
+func IsMultipleIPs(target string) bool {
+	parsedURL, err := url.Parse(target)
+	if err != nil {
+		return false
+	}
+	domain := parsedURL.Hostname()
+	ips, err := net.LookupIP(domain)
+	if err != nil {
+		Ls.Error(target + " DNS解析失败")
+		return false
+	}
+
+	if len(ips) > 1 {
+		return true
+	} else {
+		return false
+	}
 }

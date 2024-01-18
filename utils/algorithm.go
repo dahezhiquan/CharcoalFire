@@ -20,3 +20,16 @@ func BinarySearch(slice []string, target string) bool {
 
 	return false
 }
+
+// 从切片中删除某个元素
+
+func RemoveElementSlice(slice []string, element string) []string {
+	for i := 0; i < len(slice); i++ {
+		if slice[i] == element {
+			slice[i] = slice[len(slice)-1]
+			slice = slice[:len(slice)-1]
+			i--
+		}
+	}
+	return slice
+}
