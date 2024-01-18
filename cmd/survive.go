@@ -142,6 +142,7 @@ func SurviveCmdByFile(parameter Parameter) []string {
 		Ls.Debug("过滤者模式已开启，正在去重...")
 		surviveUrls = DeduplicateDictValues(surviveUrlsInfo)
 		Ls.Debug("去重已完成")
+
 		utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 		return surviveUrls
 	} else {

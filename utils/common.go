@@ -17,3 +17,8 @@ const Banner = `
 `
 
 const ResultLogName = "logs"
+
+// DnsSearchThread Dns服务器列表炭火的线程数
+const DnsSearchThread = 500
+
+const CDNCheckThread = 500
