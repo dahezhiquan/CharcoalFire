@@ -30,3 +30,19 @@ func GetLanVersion(total string) []string {
 	res := strings.Split(total, "/")
 	return res
 }
+
+// 字符串切片去重
+
+func RemoveDuplicates(strSlice []string) []string {
+	encountered := map[string]bool{}
+	var result []string
+	for _, str := range strSlice {
+		if encountered[str] == true {
+			continue
+		} else {
+			encountered[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
+}

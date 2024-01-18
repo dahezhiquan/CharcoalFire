@@ -21,6 +21,7 @@ type Parameter struct {
 	thread   int
 	isDoamin bool
 	isClear  bool
+	isGetIp  bool
 }
 
 var Ls = utils.GetSlog("survive")
@@ -37,6 +38,7 @@ func init() {
 	surviveCmd.Flags().BoolP("clean", "c", false, "过滤者模式（目标相同title只保留一个）")
 	surviveCmd.Flags().BoolP("domain", "d", false, "以domain格式输出结果")
 	surviveCmd.Flags().BoolP("clear", "k", false, "智能去除解析多个IP地址的目标")
+	surviveCmd.Flags().BoolP("getip", "g", false, "获取目标所有的IP")
 }
 
 var surviveCmd = &cobra.Command{
@@ -52,6 +54,7 @@ var surviveCmd = &cobra.Command{
 		parameter.isClean, _ = cmd.Flags().GetBool("clean")
 		parameter.isDoamin, _ = cmd.Flags().GetBool("domain")
 		parameter.isClear, _ = cmd.Flags().GetBool("clear")
+		parameter.isGetIp, _ = cmd.Flags().GetBool("getip")
 		if parameter.url != "" {
 			SurviveCmd(parameter)
 			return
@@ -149,7 +152,9 @@ func SurviveCmdByFile(parameter Parameter) []string {
 		Ls.Debug("去重已完成")
 	}
 
-	if parameter.isClear {
+	var targetIps []string // 存放目标解析的所有单IP地址
+
+	if parameter.isClear || parameter.isGetIp {
 
 		Ls.Debug("智能去除多IP目标已开启，正在去除...")
 
@@ -160,10 +165,15 @@ func SurviveCmdByFile(parameter Parameter) []string {
 			go func() {
 				defer wg.Done()
 				for target := range urlChan2 {
-					if IsMultipleIPs(target) {
+					isMul, ip := IsMultipleIPs(target)
+					if isMul {
 						mu.Lock() // 加锁
 						Ls.Info("发现多IP解析目标：" + target)
 						surviveUrls = utils.RemoveElementSlice(surviveUrls, target)
+						mu.Unlock() // 解锁
+					} else {
+						mu.Lock() // 加锁
+						targetIps = append(targetIps, ip)
 						mu.Unlock() // 解锁
 					}
 				}
@@ -179,6 +189,15 @@ func SurviveCmdByFile(parameter Parameter) []string {
 
 		Ls.Debug("去除已完成")
 	}
+
+	// 只想获取目标ips
+	if parameter.isGetIp {
+		targetIps = utils.RemoveDuplicates(targetIps)
+		Ls.Info("目标全部IP地址已提取完成")
+		utils.WriteFile("survive/ips", targetIps, parameter.isDoamin)
+		return nil
+	}
+
 	utils.WriteFile("survive", surviveUrls, parameter.isDoamin)
 	return surviveUrls
 }
@@ -199,21 +218,21 @@ func DeduplicateDictValues(surviveUrlsInfo map[string]string) []string {
 }
 
 // IsMultipleIPs 智能去除多IP
-func IsMultipleIPs(target string) bool {
+func IsMultipleIPs(target string) (bool, string) {
 	parsedURL, err := url.Parse(target)
 	if err != nil {
-		return false
+		return true, ""
 	}
 	domain := parsedURL.Hostname()
 	ips, err := net.LookupIP(domain)
 	if err != nil {
 		Ls.Error(target + " DNS解析失败")
-		return false
+		return true, ""
 	}
 
 	if len(ips) > 1 {
-		return true
+		return true, ""
 	} else {
-		return false
+		return false, ips[0].String()
 	}
 }
