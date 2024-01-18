@@ -338,5 +338,16 @@ func sortVersion(urlsInfo map[string]string) {
 		versions = append(versions, "PHP/"+v.Version)
 	}
 
-	utils.WriteFileBySuffix("fisher", urls, versions)
+	// 切片整合
+	data := make([][]string, len(urls)+1)
+	titles := []string{"URL", "Version"}
+	data[0] = titles
+	for i := 0; i < len(urls); i++ {
+		data[i+1] = []string{urls[i], versions[i]}
+	}
+
+	utils.WriteCsv("fisher", data)
+
+	// 写入纯文本的支持
+	//utils.WriteFileBySuffix("fisher", urls, versions)
 }

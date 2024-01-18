@@ -2,6 +2,9 @@ package utils
 
 import (
 	"bufio"
+	"encoding/csv"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	"net"
 	"net/url"
 	"os"
@@ -17,7 +20,7 @@ var Lw = GetSlog("file")
 func WriteFile(path string, content []string, isDoamin bool) {
 	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
 	if err != nil {
-		Lw.Fatal(path + " 文件创建失败")
+		Lw.Fatal(path + " 文件夹创建失败")
 	}
 
 	// 构建文件名
@@ -55,7 +58,7 @@ func WriteFile(path string, content []string, isDoamin bool) {
 func WriteFileBySuffix(path string, content []string, suffix []string) {
 	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
 	if err != nil {
-		Lw.Fatal(path + " 文件创建失败")
+		Lw.Fatal(path + " 文件夹创建失败")
 	}
 
 	// 构建文件名
@@ -80,6 +83,32 @@ func WriteFileBySuffix(path string, content []string, suffix []string) {
 		if err != nil {
 			Lw.Fatal(filePath + " 结果写入文件失败")
 		}
+	}
+	Lw.Info("结果已保存到：" + filePath)
+}
+
+// WriteCsv /**
+func WriteCsv(path string, data [][]string) {
+
+	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
+	if err != nil {
+		Lw.Fatal(path + " 文件夹创建失败")
+	}
+
+	currentTime := time.Now().Format("20060102150405")
+	filePath := filepath.Join(ResultLogName, path, currentTime+".csv")
+	file, err := os.Create(filePath)
+	if err != nil {
+		Lw.Fatal(filePath + " CSV文件创建失败")
+	}
+
+	// 创建CSV Writer
+	writer := csv.NewWriter(transform.NewWriter(file, simplifiedchinese.GBK.NewEncoder()))
+	defer writer.Flush()
+
+	// 将数据写入CSV文件
+	for _, row := range data {
+		_ = writer.Write(row)
 	}
 	Lw.Info("结果已保存到：" + filePath)
 }
