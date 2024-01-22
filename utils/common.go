@@ -4,7 +4,7 @@ package utils
 
 const Author = `dahezhiquan - wechat`
 
-const Version = "CharcoalFire Version 1.3.1"
+const Version = "CharcoalFire Version 1.6.2"
 
 const Banner = `
  ________  ___  ___  ________  ________  ________  ________  ________  ___       ________ ___  ________  _______      
@@ -22,3 +22,7 @@ const ResultLogName = "logs"
 const DnsSearchThread = 500
 
 const CDNCheckThread = 500
+
+// 排雷兵阈值
+
+const SoldiersThreshold = 20
