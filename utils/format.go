@@ -16,6 +16,20 @@ func GetDomain(urlp string) string {
 	return parsedURL.Host
 }
 
+// GetDomainName 提取url的domain name
+// 例如https://baidu.com转为baidu
+
+func GetDomainName(urlp string) string {
+	domain := GetDomain(urlp)
+	index := strings.Index(domain, ".")
+
+	if index != -1 {
+		result := domain[:index]
+		return result
+	}
+	return domain
+}
+
 // GetSuffix 提取文件后缀
 func GetSuffix(path string) string {
 	splitResult := strings.Split(path, "?")

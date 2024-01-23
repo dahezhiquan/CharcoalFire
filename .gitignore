@@ -22,4 +22,5 @@ go.work
 
 .idea/
 urls.txt
+cmd/tmp.txt
 logs/
