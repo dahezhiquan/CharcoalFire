@@ -161,7 +161,6 @@ func CrackItsTarget(dirParameter DirParameter) {
 	}
 	close(urlChan)
 	wgits.Wait()
-	return
 }
 
 func compareByURL(a, b *TargetInfo) bool {
@@ -170,6 +169,15 @@ func compareByURL(a, b *TargetInfo) bool {
 
 // CrackIt 爆破启动器
 func CrackIt(dirParameter DirParameter) {
+
+	var dicts []string
+
+	if dirParameter.isBackUp {
+		dicts = append(dictionary, ScanByTargetDict(dirParameter.url)...)
+	} else {
+		dicts = dictionary
+	}
+
 	targetTitle := "ahahahahahahahaha"
 	ask := utils.Ask{}
 	ask.Url = dirParameter.url
@@ -190,7 +198,7 @@ func CrackIt(dirParameter DirParameter) {
 		}
 	}
 
-	urlChan := make(chan string)
+	urlChan2 := make(chan string, dirParameter.threadOnly)
 	soldiers := 0 // 排雷兵，用来检测是不是被目标ban了
 	isBan := false
 	var wgit sync.WaitGroup
@@ -199,10 +207,12 @@ func CrackIt(dirParameter DirParameter) {
 		wgit.Add(1)
 		go func() {
 			defer wgit.Done()
-			for dict := range urlChan {
+			for dict := range urlChan2 {
 				// IP被ban了或者网络波动，停止扫描当前目标
 				if isBan {
+					muit.Lock()
 					connCnt++
+					muit.Unlock()
 					continue
 				}
 				dirPage := utils.DelExtraSlash(dirParameter.url + dict)
@@ -213,8 +223,10 @@ func CrackIt(dirParameter DirParameter) {
 				resp2 := utils.Outsourcing(ask)
 
 				if resp2 == nil {
+					muit.Lock()
 					connCnt++
 					soldiers++
+					muit.Unlock()
 					// 连续连接失败次数达到阈值
 					if soldiers > utils.SoldiersThreshold {
 						isBan = true
@@ -222,8 +234,10 @@ func CrackIt(dirParameter DirParameter) {
 						return
 					}
 				} else {
+					muit.Lock()
 					connCnt++
 					soldiers = 0 // 重置排雷兵
+					muit.Unlock()
 
 					// 防止resp2指针移动到末尾导致无法读取的情况
 					body, _ := io.ReadAll(resp2.Body)
@@ -251,22 +265,12 @@ func CrackIt(dirParameter DirParameter) {
 			}
 		}()
 	}
-
-	var dicts []string
-
-	if dirParameter.isBackUp {
-		dicts = append(dictionary, ScanByTargetDict(dirParameter.url)...)
-	} else {
-		dicts = dictionary
-	}
-
 	// 将url发送到urlChan供消费者goroutine处理
 	for _, dict := range dicts {
-		urlChan <- dict
+		urlChan2 <- dict
 	}
-	close(urlChan)
+	close(urlChan2)
 	wgit.Wait()
-	return
 }
 
 // 进度条前缀输出
