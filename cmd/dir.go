@@ -95,7 +95,12 @@ var dirCmd = &cobra.Command{
 		}
 
 		if dirParameter.url != "" {
-			totalCnt += len(dictionary) + 2*len(utils.BackUpFileList)
+			if dirParameter.isBackUp {
+				totalCnt += len(dictionary) + 2*len(utils.BackUpFileList)
+			} else {
+				totalCnt += len(dictionary)
+			}
+			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCnt) + " 条")
 			CrackIt(dirParameter)
 			SaveRes()
 			return
@@ -130,9 +135,13 @@ func CrackItsTarget(dirParameter DirParameter) {
 		Lf.Fatal("dir列表文件解析失败")
 	}
 
-	totalCnt += len(dictionary)*len(result) + len(result)*len(utils.BackUpFileList)*2
+	if dirParameter.isBackUp {
+		totalCnt += len(dictionary)*len(result) + len(result)*len(utils.BackUpFileList)*2
+	} else {
+		totalCnt += len(dictionary) * len(result)
+	}
 
-	println(totalCnt)
+	Ldir.Info("成功加载字典： " + strconv.Itoa(totalCnt) + " 条")
 
 	urlChan := make(chan string)
 	for i := 0; i < dirParameter.thread; i++ {
@@ -243,7 +252,14 @@ func CrackIt(dirParameter DirParameter) {
 		}()
 	}
 
-	dicts := append(dictionary, ScanByTargetDict(dirParameter.url)...)
+	var dicts []string
+
+	if dirParameter.isBackUp {
+		dicts = append(dictionary, ScanByTargetDict(dirParameter.url)...)
+	} else {
+		dicts = dictionary
+	}
+
 	// 将url发送到urlChan供消费者goroutine处理
 	for _, dict := range dicts {
 		urlChan <- dict
