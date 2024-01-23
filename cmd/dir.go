@@ -24,6 +24,7 @@ type DirParameter struct {
 	level       string
 	isBackstage bool // 后台爆破
 	isBackUp    bool // 备份文件爆破
+	isSqlBack   bool // 数据库备份快扫
 }
 
 type TargetInfo struct {
@@ -37,7 +38,7 @@ var Ldir = utils.GetSlog("dir")
 var dictionary []string // 字典
 var targetInfo []TargetInfo
 var connCnt = 0 // 请求数
-var totalCnt int
+var totalCnt = 0
 
 func init() {
 	ew := &utils.EmptyWriter{}
@@ -51,7 +52,8 @@ func init() {
 	dirCmd.Flags().StringP("proxy", "p", "", "代理地址")
 	dirCmd.Flags().StringP("level", "l", "1", "爆破等级（1为小字典爆破，2为中字典爆破，3为大字典爆破）")
 	dirCmd.Flags().BoolP("admin", "a", false, "后台发现")
-	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现")
+	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现（level:4，不使用字典，只做相关性扫描）")
+	dirCmd.Flags().BoolP("sqlbackup", "s", false, "数据库备份快扫")
 }
 
 var dirCmd = &cobra.Command{
@@ -68,31 +70,37 @@ var dirCmd = &cobra.Command{
 		dirParameter.level, _ = cmd.Flags().GetString("level")
 		dirParameter.isBackstage, _ = cmd.Flags().GetBool("admin")
 		dirParameter.isBackUp, _ = cmd.Flags().GetBool("backup")
+		dirParameter.isSqlBack, _ = cmd.Flags().GetBool("sqlbackup")
 
-		if dirParameter.isBackstage {
-
-		}
-		if dirParameter.isBackUp {
-			temp, err := utils.ReadLinesFromFile("dict/backup" + dirParameter.level + ".txt")
+		if dirParameter.isSqlBack {
+			temp, err := utils.ReadLinesFromFile("dict/sqlbackup" + dirParameter.level + ".txt")
 			if err != nil {
-				Ldir.Fatal("备份文件字典解析失败")
+				Ldir.Fatal("数据库备份文件字典解析失败")
 			}
 			dictionary = append(dictionary, temp...)
 		}
 
-		if dirParameter.url != "" {
-
-			if dirParameter.isBackUp {
-				AddTargetDict([]string{dirParameter.url})
+		if dirParameter.isBackstage {
+		}
+		if dirParameter.isBackUp {
+			if dirParameter.level == "4" {
+				Ldir.Debug("开始整合目标相关字典...")
+			} else {
+				temp, err := utils.ReadLinesFromFile("dict/backup" + dirParameter.level + ".txt")
+				if err != nil {
+					Ldir.Fatal("备份文件字典解析失败")
+				}
+				dictionary = append(dictionary, temp...)
 			}
+		}
 
-			totalCnt = len(dictionary)
+		if dirParameter.url != "" {
+			totalCnt += len(dictionary) + 2*len(utils.BackUpFileList)
 			CrackIt(dirParameter)
 			SaveRes()
 			return
 		}
 		if dirParameter.file != "" {
-
 			CrackItsTarget(dirParameter)
 			sort.Slice(targetInfo, func(i, j int) bool {
 				return compareByURL(&targetInfo[i], &targetInfo[j])
@@ -103,14 +111,14 @@ var dirCmd = &cobra.Command{
 	},
 }
 
-// AddTargetDict 添加域名相关的字典
-func AddTargetDict(targets []string) {
-	for _, target := range targets {
-		for _, v := range utils.BackUpFileList {
-			dictionary = append(dictionary, "/"+utils.GetDomainName(target)+v)
-			dictionary = append(dictionary, "/"+utils.GetDomain(target)+v)
-		}
+// ScanByTargetDict 扫描和域名相关的字典
+func ScanByTargetDict(target string) []string {
+	var addS []string
+	for _, v := range utils.BackUpFileList {
+		addS = append(addS, "/"+utils.GetDomain(target)+v)
+		addS = append(addS, "/"+utils.GetDomainName(target)+v)
 	}
+	return addS
 }
 
 func CrackItsTarget(dirParameter DirParameter) {
@@ -122,11 +130,10 @@ func CrackItsTarget(dirParameter DirParameter) {
 		Lf.Fatal("dir列表文件解析失败")
 	}
 
-	if dirParameter.isBackUp {
-		AddTargetDict(result)
-	}
+	totalCnt += len(dictionary)*len(result) + len(result)*len(utils.BackUpFileList)*2
 
-	totalCnt = len(dictionary) * len(result)
+	println(totalCnt)
+
 	urlChan := make(chan string)
 	for i := 0; i < dirParameter.thread; i++ {
 		wgits.Add(1)
@@ -236,8 +243,9 @@ func CrackIt(dirParameter DirParameter) {
 		}()
 	}
 
+	dicts := append(dictionary, ScanByTargetDict(dirParameter.url)...)
 	// 将url发送到urlChan供消费者goroutine处理
-	for _, dict := range dictionary {
+	for _, dict := range dicts {
 		urlChan <- dict
 	}
 	close(urlChan)
