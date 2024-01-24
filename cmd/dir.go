@@ -22,6 +22,7 @@ type DirParameter struct {
 	thread      int
 	threadOnly  int
 	level       string
+	scanMethod  string
 	isBackstage bool // 后台爆破
 	isBackUp    bool // 备份文件爆破
 	isSqlBack   bool // 数据库备份快扫
@@ -50,6 +51,7 @@ func init() {
 	dirCmd.Flags().StringP("file", "f", "", "目标url列表文件")
 	dirCmd.Flags().IntP("timeout", "t", 10, "超时时间")
 	dirCmd.Flags().StringP("proxy", "p", "", "代理地址")
+	dirCmd.Flags().StringP("method", "m", "HEAD", "目录爆破请求的方法（更换为GET后可防止目录泛解析）")
 	dirCmd.Flags().StringP("level", "l", "1", "爆破等级（1为小字典爆破，2为中字典爆破，3为大字典爆破）")
 	dirCmd.Flags().BoolP("admin", "a", false, "后台发现")
 	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现（level:4，不使用字典，只做相关性扫描）")
@@ -68,6 +70,7 @@ var dirCmd = &cobra.Command{
 		dirParameter.thread, _ = cmd.Flags().GetInt("thread")
 		dirParameter.threadOnly, _ = cmd.Flags().GetInt("threadonly")
 		dirParameter.level, _ = cmd.Flags().GetString("level")
+		dirParameter.scanMethod, _ = cmd.Flags().GetString("method")
 		dirParameter.isBackstage, _ = cmd.Flags().GetBool("admin")
 		dirParameter.isBackUp, _ = cmd.Flags().GetBool("backup")
 		dirParameter.isSqlBack, _ = cmd.Flags().GetBool("sqlbackup")
@@ -143,7 +146,7 @@ func CrackItsTarget(dirParameter DirParameter) {
 
 	Ldir.Info("成功加载字典： " + strconv.Itoa(totalCnt) + " 条")
 
-	urlChan := make(chan string)
+	urlChan := make(chan string, dirParameter.thread)
 	for i := 0; i < dirParameter.thread; i++ {
 		wgits.Add(1)
 		go func() {
@@ -179,12 +182,13 @@ func CrackIt(dirParameter DirParameter) {
 	}
 
 	targetTitle := "ahahahahahahahaha"
+
+	// 先发一个探测title的包，防止目录泛解析
 	ask := utils.Ask{}
 	ask.Url = dirParameter.url
 	ask.Proxy = dirParameter.proxy
 	ask.Timeout = dirParameter.timeout
 	resp := utils.Outsourcing(ask)
-
 	var doc *goquery.Document
 	var err error
 
@@ -220,7 +224,8 @@ func CrackIt(dirParameter DirParameter) {
 				ask.Url = dirPage
 				ask.Proxy = dirParameter.proxy
 				ask.Timeout = dirParameter.timeout
-				resp2 := utils.Outsourcing(ask)
+				ask.Method = dirParameter.scanMethod
+				resp2 := utils.OutsourcingByPwn(ask)
 
 				if resp2 == nil {
 					muit.Lock()
@@ -290,6 +295,7 @@ func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (b
 	}
 
 	nowTitle := doc.Find("title").First().Text()
+	println(nowTitle)
 
 	// 防止目录泛解析
 	if nowTitle == targetTitle {

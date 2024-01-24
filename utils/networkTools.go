@@ -126,6 +126,7 @@ func OutsourcingByPwn(ask Ask) *http.Response {
 	return resp
 }
 
+// GetUA UA生产池
 func GetUA() string {
 	firstNum := rand.Intn(8) + 55
 	thirdNum := rand.Intn(3201)
