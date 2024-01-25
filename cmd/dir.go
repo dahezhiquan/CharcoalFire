@@ -45,7 +45,7 @@ func init() {
 	ew := &utils.EmptyWriter{}
 	log.SetOutput(io.Writer(ew))
 	rootCmd.AddCommand(dirCmd)
-	dirCmd.Flags().IntP("thread", "r", 500, "线程数（同时扫多少目标）")
+	dirCmd.Flags().IntP("thread", "r", 50, "线程数（同时扫多少目标）")
 	dirCmd.Flags().IntP("threadonly", "y", 20, "单个目标线程数")
 	dirCmd.Flags().StringP("url", "u", "", "目标url")
 	dirCmd.Flags().StringP("file", "f", "", "目标url列表文件")
@@ -295,7 +295,6 @@ func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (b
 	}
 
 	nowTitle := doc.Find("title").First().Text()
-	println(nowTitle)
 
 	// 防止目录泛解析
 	if nowTitle == targetTitle {

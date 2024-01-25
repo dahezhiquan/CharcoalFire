@@ -24,6 +24,9 @@ type Parameter struct {
 	isGetIp  bool
 }
 
+var connCntSur = 0
+var totalCntSur = 0
+
 var Ls = utils.GetSlog("survive")
 
 func init() {
@@ -66,11 +69,19 @@ var surviveCmd = &cobra.Command{
 	},
 }
 
-func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
+// 进度条前缀输出
+func getProgressCur() string {
+	return "[" + strconv.Itoa(connCntSur) + "/" + strconv.Itoa(totalCntSur) + "] "
+}
 
+func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
+	var muit sync.Mutex // 互斥锁
 	var isUrl = utils.IsUrl(parameter.url)
 	if !isUrl {
 		Ls.Error(parameter.url + " 目标不是URL")
+		muit.Lock()
+		connCntSur++
+		muit.Unlock()
 		return false, utils.HtmlDocument{}
 	}
 
@@ -78,18 +89,27 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 	ask.Url = parameter.url
 	ask.Proxy = parameter.proxy
 	ask.Timeout = parameter.timeout
-	resp := utils.Outsourcing(ask)
+	resp := utils.OutsourcingByPwn(ask)
 
 	// 防止空指针问题
 	if resp != nil {
 		if resp.StatusCode == http.StatusOK {
-			Ls.Info(parameter.url + " 目标存活")
+			muit.Lock()
+			connCntSur++
+			muit.Unlock()
+			Ls.Info(getProgressCur() + parameter.url + " 目标存活")
 			return true, utils.GetHtmlDocument(parameter.url, resp)
 		} else {
-			Ls.Error(parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
+			muit.Lock()
+			connCntSur++
+			muit.Unlock()
+			Ls.Error(getProgressCur() + parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 			return false, utils.HtmlDocument{}
 		}
 	} else {
+		muit.Lock()
+		connCntSur++
+		muit.Unlock()
 		return false, utils.HtmlDocument{}
 	}
 }
@@ -102,6 +122,10 @@ func SurviveCmdByFile(parameter Parameter) []string {
 		Ls.Fatal("存活探测列表解析失败")
 		return nil
 	}
+
+	Ls.Info("加载目标文件成功，总计： " + strconv.Itoa(len(result)) + " 条")
+
+	totalCntSur += len(result)
 
 	// 存活的目标
 	var surviveUrls []string
