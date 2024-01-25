@@ -188,7 +188,7 @@ func CrackIt(dirParameter DirParameter) {
 	ask.Url = dirParameter.url
 	ask.Proxy = dirParameter.proxy
 	ask.Timeout = dirParameter.timeout
-	resp := utils.Outsourcing(ask)
+	resp := utils.OutsourcingByPwn(ask)
 	var doc *goquery.Document
 	var err error
 

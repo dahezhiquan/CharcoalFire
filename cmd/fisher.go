@@ -94,7 +94,7 @@ func GetPhpByFile(fisherParameter FisherParameter) {
 				ask.Url = url
 				ask.Proxy = fisherParameter.proxy
 				ask.Timeout = fisherParameter.timeout
-				resp := utils.Outsourcing(ask)
+				resp := utils.OutsourcingByPwn(ask)
 				version := ""
 				if resp != nil {
 					// 目标响应包的X-Powered-By字段判断
@@ -167,7 +167,7 @@ func GetAspByFile(fisherParameter FisherParameter) {
 				ask.Url = url
 				ask.Proxy = fisherParameter.proxy
 				ask.Timeout = fisherParameter.timeout
-				resp := utils.Outsourcing(ask)
+				resp := utils.OutsourcingByPwn(ask)
 				if resp != nil {
 					// 目标响应包的X-Powered-By字段判断
 					phpVersion := resp.Header.Get("X-Powered-By")
@@ -231,7 +231,7 @@ func GetJspByFile(fisherParameter FisherParameter) {
 				ask.Url = url
 				ask.Proxy = fisherParameter.proxy
 				ask.Timeout = fisherParameter.timeout
-				resp := utils.Outsourcing(ask)
+				resp := utils.OutsourcingByPwn(ask)
 				if resp != nil {
 					// 目标响应包的X-Powered-By字段判断
 					// 通过Set-Cookie进行识别
@@ -287,7 +287,7 @@ func GetAngelByFile(fisherParameter FisherParameter) {
 				ask.Url = url
 				ask.Proxy = fisherParameter.proxy
 				ask.Timeout = fisherParameter.timeout
-				resp := utils.Outsourcing(ask)
+				resp := utils.OutsourcingByPwn(ask)
 				if resp != nil {
 					body, _ := io.ReadAll(resp.Body)
 					htmlContent := string(body)

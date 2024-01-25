@@ -103,7 +103,7 @@ func DownLoadIcon(iconParameter IconParameter, htmlDocument utils.HtmlDocument) 
 	ask.Url = htmlDocument.Icon
 	ask.Proxy = iconParameter.proxy
 	ask.Timeout = iconParameter.timeout
-	resp := utils.Outsourcing(ask)
+	resp := utils.OutsourcingByPwn(ask)
 
 	// TODO 修复icon路径访问302跳转200误判为icon的bug
 	//respTmp := resp
