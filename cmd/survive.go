@@ -24,8 +24,17 @@ type Parameter struct {
 	isGetIp  bool
 }
 
+var wg sync.WaitGroup
+var mu sync.Mutex // 互斥锁
 var connCntSur = 0
 var totalCntSur = 0
+
+// 安全地增加 connCnt
+func incrementConnCntSur() {
+	mu.Lock()
+	defer mu.Unlock()
+	connCntSur++
+}
 
 var Ls = utils.GetSlog("survive")
 
@@ -75,13 +84,10 @@ func getProgressCur() string {
 }
 
 func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
-	var muit sync.Mutex // 互斥锁
 	var isUrl = utils.IsUrl(parameter.url)
 	if !isUrl {
 		Ls.Error(parameter.url + " 目标不是URL")
-		muit.Lock()
-		connCntSur++
-		muit.Unlock()
+		incrementConnCntSur()
 		return false, utils.HtmlDocument{}
 	}
 
@@ -94,22 +100,16 @@ func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
 	// 防止空指针问题
 	if resp != nil {
 		if resp.StatusCode == http.StatusOK {
-			muit.Lock()
-			connCntSur++
-			muit.Unlock()
+			incrementConnCntSur()
 			Ls.Info(getProgressCur() + parameter.url + " 目标存活")
 			return true, utils.GetHtmlDocument(parameter.url, resp)
 		} else {
-			muit.Lock()
-			connCntSur++
-			muit.Unlock()
+			incrementConnCntSur()
 			Ls.Error(getProgressCur() + parameter.url + " 目标不存活，状态码：" + strconv.Itoa(resp.StatusCode))
 			return false, utils.HtmlDocument{}
 		}
 	} else {
-		muit.Lock()
-		connCntSur++
-		muit.Unlock()
+		incrementConnCntSur()
 		return false, utils.HtmlDocument{}
 	}
 }
@@ -135,8 +135,6 @@ func SurviveCmdByFile(parameter Parameter) []string {
 
 	threadNum := parameter.thread
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex // 互斥锁
 	urlChan := make(chan string)
 
 	for i := 0; i < threadNum; i++ {
