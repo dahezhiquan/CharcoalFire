@@ -172,13 +172,18 @@ func compareByURL(a, b *TargetInfo) bool {
 
 // CrackIt 爆破启动器
 func CrackIt(dirParameter DirParameter) {
-
+	var wgit sync.WaitGroup
+	var muit sync.Mutex // 互斥锁
 	var dicts []string
 
 	if dirParameter.isBackUp {
+		muit.Lock()
 		dicts = append(dictionary, ScanByTargetDict(dirParameter.url)...)
+		muit.Unlock()
 	} else {
+		muit.Lock()
 		dicts = dictionary
+		muit.Unlock()
 	}
 
 	targetTitle := "ahahahahahahahaha"
@@ -205,8 +210,6 @@ func CrackIt(dirParameter DirParameter) {
 	urlChan2 := make(chan string, dirParameter.threadOnly)
 	soldiers := 0 // 排雷兵，用来检测是不是被目标ban了
 	isBan := false
-	var wgit sync.WaitGroup
-	var muit sync.Mutex // 互斥锁
 	for i := 0; i < dirParameter.threadOnly; i++ {
 		wgit.Add(1)
 		go func() {
