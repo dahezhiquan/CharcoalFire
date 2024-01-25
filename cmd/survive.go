@@ -26,14 +26,14 @@ type Parameter struct {
 
 var wg sync.WaitGroup
 var mu sync.Mutex // 互斥锁
-var connCntSur = 0
-var totalCntSur = 0
+var connCntSurvive = 0
+var totalCntSurvive = 0
 
-// 安全地增加 connCnt
+// 安全地增加
 func incrementConnCntSur() {
 	mu.Lock()
 	defer mu.Unlock()
-	connCntSur++
+	connCntSurvive++
 }
 
 var Ls = utils.GetSlog("survive")
@@ -80,7 +80,7 @@ var surviveCmd = &cobra.Command{
 
 // 进度条前缀输出
 func getProgressCur() string {
-	return "[" + strconv.Itoa(connCntSur) + "/" + strconv.Itoa(totalCntSur) + "] "
+	return "[" + strconv.Itoa(connCntSurvive) + "/" + strconv.Itoa(totalCntSurvive) + "] "
 }
 
 func SurviveCmd(parameter Parameter) (bool, utils.HtmlDocument) {
@@ -125,7 +125,7 @@ func SurviveCmdByFile(parameter Parameter) []string {
 
 	Ls.Info("加载目标文件成功，总计： " + strconv.Itoa(len(result)) + " 条")
 
-	totalCntSur += len(result)
+	totalCntSurvive += len(result)
 
 	// 存活的目标
 	var surviveUrls []string

@@ -38,8 +38,23 @@ type TargetInfo struct {
 var Ldir = utils.GetSlog("dir")
 var dictionary []string // 字典
 var targetInfo []TargetInfo
-var connCnt = 0 // 请求数
-var totalCnt = 0
+var connCntDir = 0 // 请求数
+var totalCntDir = 0
+var wgDir sync.WaitGroup
+var wgDirIt sync.WaitGroup
+var muDir sync.Mutex
+
+func incrementConnCntDir() {
+	muDir.Lock()
+	defer muDir.Unlock()
+	connCntDir++
+}
+
+func appendToTargetInfo(info TargetInfo) {
+	muDir.Lock()
+	defer muDir.Unlock()
+	targetInfo = append(targetInfo, info)
+}
 
 func init() {
 	ew := &utils.EmptyWriter{}
@@ -99,11 +114,11 @@ var dirCmd = &cobra.Command{
 
 		if dirParameter.url != "" {
 			if dirParameter.isBackUp {
-				totalCnt += len(dictionary) + 2*len(utils.BackUpFileList)
+				totalCntDir += len(dictionary) + 2*len(utils.BackUpFileList)
 			} else {
-				totalCnt += len(dictionary)
+				totalCntDir += len(dictionary)
 			}
-			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCnt) + " 条")
+			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 			CrackIt(dirParameter)
 			SaveRes()
 			return
@@ -130,7 +145,6 @@ func ScanByTargetDict(target string) []string {
 }
 
 func CrackItsTarget(dirParameter DirParameter) {
-	var wgits sync.WaitGroup
 	// 先对文件进行处理
 	utils.ProcessSourceFile(dirParameter.file)
 	result, err := utils.ReadLinesFromFile(dirParameter.file)
@@ -139,18 +153,18 @@ func CrackItsTarget(dirParameter DirParameter) {
 	}
 
 	if dirParameter.isBackUp {
-		totalCnt += len(dictionary)*len(result) + len(result)*len(utils.BackUpFileList)*2
+		totalCntDir += len(dictionary)*len(result) + len(result)*len(utils.BackUpFileList)*2
 	} else {
-		totalCnt += len(dictionary) * len(result)
+		totalCntDir += len(dictionary) * len(result)
 	}
 
-	Ldir.Info("成功加载字典： " + strconv.Itoa(totalCnt) + " 条")
+	Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 
-	urlChan := make(chan string, dirParameter.thread)
+	urlChan := make(chan string)
 	for i := 0; i < dirParameter.thread; i++ {
-		wgits.Add(1)
+		wgDir.Add(1)
 		go func() {
-			defer wgits.Done()
+			defer wgDir.Done()
 			for url := range urlChan {
 				var dir2 DirParameter
 				dir2 = dirParameter
@@ -163,7 +177,7 @@ func CrackItsTarget(dirParameter DirParameter) {
 		urlChan <- url
 	}
 	close(urlChan)
-	wgits.Wait()
+	wgDir.Wait()
 }
 
 func compareByURL(a, b *TargetInfo) bool {
@@ -172,18 +186,16 @@ func compareByURL(a, b *TargetInfo) bool {
 
 // CrackIt 爆破启动器
 func CrackIt(dirParameter DirParameter) {
-	var wgit sync.WaitGroup
-	var muit sync.Mutex // 互斥锁
 	var dicts []string
 
 	if dirParameter.isBackUp {
-		muit.Lock()
+		muDir.Lock()
 		dicts = append(dictionary, ScanByTargetDict(dirParameter.url)...)
-		muit.Unlock()
+		muDir.Unlock()
 	} else {
-		muit.Lock()
+		muDir.Lock()
 		dicts = dictionary
-		muit.Unlock()
+		muDir.Unlock()
 	}
 
 	targetTitle := "ahahahahahahahaha"
@@ -211,15 +223,13 @@ func CrackIt(dirParameter DirParameter) {
 	soldiers := 0 // 排雷兵，用来检测是不是被目标ban了
 	isBan := false
 	for i := 0; i < dirParameter.threadOnly; i++ {
-		wgit.Add(1)
+		wgDirIt.Add(1)
 		go func() {
-			defer wgit.Done()
+			defer wgDirIt.Done()
 			for dict := range urlChan2 {
 				// IP被ban了或者网络波动，停止扫描当前目标
 				if isBan {
-					muit.Lock()
-					connCnt++
-					muit.Unlock()
+					incrementConnCntDir()
 					continue
 				}
 				dirPage := utils.DelExtraSlash(dirParameter.url + dict)
@@ -231,10 +241,10 @@ func CrackIt(dirParameter DirParameter) {
 				resp2 := utils.OutsourcingByPwn(ask)
 
 				if resp2 == nil {
-					muit.Lock()
-					connCnt++
+					incrementConnCntDir()
+					muDir.Lock()
 					soldiers++
-					muit.Unlock()
+					muDir.Unlock()
 					// 连续连接失败次数达到阈值
 					if soldiers > utils.SoldiersThreshold {
 						isBan = true
@@ -242,10 +252,10 @@ func CrackIt(dirParameter DirParameter) {
 						return
 					}
 				} else {
-					muit.Lock()
-					connCnt++
+					incrementConnCntDir()
+					muDir.Lock()
 					soldiers = 0 // 重置排雷兵
-					muit.Unlock()
+					muDir.Unlock()
 
 					// 防止resp2指针移动到末尾导致无法读取的情况
 					body, _ := io.ReadAll(resp2.Body)
@@ -263,9 +273,7 @@ func CrackIt(dirParameter DirParameter) {
 							code:  strconv.Itoa(resp2.StatusCode),
 							title: nowTitle,
 						}
-						muit.Lock()
-						targetInfo = append(targetInfo, info)
-						muit.Unlock()
+						appendToTargetInfo(info)
 					} else {
 						Ldir.Fatal(getProgress() + dirParameter.url + " 不存在该目录 " + dirPage + " 状态码 " + strconv.Itoa(resp2.StatusCode))
 					}
@@ -278,12 +286,12 @@ func CrackIt(dirParameter DirParameter) {
 		urlChan2 <- dict
 	}
 	close(urlChan2)
-	wgit.Wait()
+	wgDirIt.Wait()
 }
 
 // 进度条前缀输出
 func getProgress() string {
-	return "[" + strconv.Itoa(connCnt) + "/" + strconv.Itoa(totalCnt) + "] "
+	return "[" + strconv.Itoa(connCntDir) + "/" + strconv.Itoa(totalCntDir) + "] "
 }
 
 func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (bool, string) {
