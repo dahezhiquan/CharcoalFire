@@ -26,6 +26,7 @@ type DirParameter struct {
 	isBackUp    bool // 备份文件爆破
 	isSqlBack   bool // 数据库备份快扫
 	isTotal     bool // 综合扫描
+	isWebShell  bool // webshell扫描
 }
 
 type TargetInfo struct {
@@ -70,6 +71,7 @@ func init() {
 	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现（level:4，不使用字典，只做相关性扫描）")
 	dirCmd.Flags().BoolP("sqlbackup", "s", false, "数据库备份快扫")
 	dirCmd.Flags().BoolP("total", "o", false, "综合扫描")
+	dirCmd.Flags().BoolP("webshell", "w", false, "webshell扫描")
 }
 
 var dirCmd = &cobra.Command{
@@ -88,6 +90,23 @@ var dirCmd = &cobra.Command{
 		dirParameter.isBackUp, _ = cmd.Flags().GetBool("backup")
 		dirParameter.isSqlBack, _ = cmd.Flags().GetBool("sqlbackup")
 		dirParameter.isTotal, _ = cmd.Flags().GetBool("total")
+		dirParameter.isWebShell, _ = cmd.Flags().GetBool("webshell")
+
+		if dirParameter.isWebShell {
+			temp, err := utils.ReadLinesFromFile("dict/webshell" + dirParameter.level + ".txt")
+			if err != nil {
+				Ldir.Fatal("webshell字典解析失败")
+			}
+			dictionary = append(dictionary, temp...)
+		}
+
+		if dirParameter.isTotal {
+			temp, err := utils.ReadLinesFromFile("dict/total" + dirParameter.level + ".txt")
+			if err != nil {
+				Ldir.Fatal("综合字典解析失败")
+			}
+			dictionary = append(dictionary, temp...)
+		}
 
 		if dirParameter.isSqlBack {
 			temp, err := utils.ReadLinesFromFile("dict/sqlbackup" + dirParameter.level + ".txt")
