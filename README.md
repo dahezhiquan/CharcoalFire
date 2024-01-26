@@ -22,7 +22,7 @@
 
 目录爆破
 
-![image](https://github.com/dahezhiquan/CharcoalFire/assets/76278560/839cd66e-378b-43d9-9982-4380729636b0)
+![0880c08b0110afde8028](https://github.com/dahezhiquan/CharcoalFire/assets/76278560/b5951c10-4ece-4855-8653-a3c1ec61cf07)
 
 
 
