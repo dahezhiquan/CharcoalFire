@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+	"io/fs"
 	"net"
 	"net/url"
 	"os"
@@ -135,27 +136,6 @@ func WriteCsvByName(path string, filename string, data [][]string) {
 		_ = writer.Write(row)
 	}
 	Lw.Info("结果已保存到：" + filePath)
-}
-
-// ClearFile 清空文件内容
-func ClearFile(path string) {
-	currentTime := time.Now().Format("20060102")
-	filePath := filepath.Join(ResultLogName, path, currentTime+".txt")
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_TRUNC, 0666)
-	if err != nil {
-		Lw.Fatal(filePath + " 文件打开失败")
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			Lw.Warning(filePath + " 文件未正常关闭")
-		}
-	}(file)
-
-	err = file.Truncate(0)
-	if err != nil {
-		Lw.Fatal(filePath + " 清空文件失败")
-	}
 }
 
 // ReadLinesFromFile 读取一个文件，返回该文件内容的切片
@@ -291,4 +271,33 @@ func DelExtraSlash(url string) string {
 		}
 	}
 	return result
+}
+
+// 删除某个文件中的某个匹配的行
+
+func DelLine(filePath string, targetText string) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		Lw.Fatal(filePath + " 读取文件失败")
+		return
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var filteredLines []string
+
+	for _, line := range lines {
+		if line == targetText {
+			Lw.Debug("已经删除 " + filePath + " 中的 " + targetText)
+			continue
+		} else {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	output := strings.Join(filteredLines, "\n")
+	err = os.WriteFile(filePath, []byte(output), fs.ModePerm)
+	if err != nil {
+		Lw.Fatal(filePath + " 写入文件失败")
+		return
+	}
 }

@@ -9,7 +9,7 @@ var ImgFileTypes = []string{
 
 var NotFoudList = []string{
 	"页面不存在", "404 Not Found", "Not Found", "No Page", "不存在", "找不到", "404",
-	"Error", "错误", "錯誤",
+	"Error", "错误", "錯誤", "Redirecting",
 }
 
 var BackUpFileList = []string{

@@ -59,12 +59,12 @@ func init() {
 	ew := &utils.EmptyWriter{}
 	log.SetOutput(io.Writer(ew))
 	rootCmd.AddCommand(dirCmd)
-	dirCmd.Flags().IntP("thread", "r", 20, "单个目标线程数")
+	dirCmd.Flags().IntP("thread", "r", 50, "单个目标线程数")
 	dirCmd.Flags().StringP("url", "u", "", "目标url")
 	dirCmd.Flags().StringP("file", "f", "", "目标url列表文件")
 	dirCmd.Flags().IntP("timeout", "t", 10, "超时时间")
 	dirCmd.Flags().StringP("proxy", "p", "", "代理地址")
-	dirCmd.Flags().StringP("method", "m", "HEAD", "目录爆破请求的方法（更换为GET后可防止目录泛解析）")
+	dirCmd.Flags().StringP("method", "m", "GET", "目录爆破请求的方法（GET可防止目录泛解析，HEAD更快）")
 	dirCmd.Flags().StringP("level", "l", "1", "爆破等级（1为小字典爆破，2为中字典爆破，3为大字典爆破）")
 	dirCmd.Flags().BoolP("admin", "a", false, "后台发现")
 	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现（level:4，不使用字典，只做相关性扫描）")
@@ -161,6 +161,7 @@ func CrackItsTarget(dirParameter DirParameter) {
 		dir2.url = url
 		CrackIt(dir2)
 		SaveRes(utils.GetDomain(url))
+		utils.DelLine(dirParameter.file, url)
 		targetInfo = nil // 重置targetInfo
 	}
 }
