@@ -9,8 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -20,12 +20,12 @@ type DirParameter struct {
 	proxy       string
 	file        string
 	thread      int
-	threadOnly  int
 	level       string
 	scanMethod  string
 	isBackstage bool // 后台爆破
 	isBackUp    bool // 备份文件爆破
 	isSqlBack   bool // 数据库备份快扫
+	isTotal     bool // 综合扫描
 }
 
 type TargetInfo struct {
@@ -41,7 +41,6 @@ var targetInfo []TargetInfo
 var connCntDir = 0 // 请求数
 var totalCntDir = 0
 var wgDir sync.WaitGroup
-var wgDirIt sync.WaitGroup
 var muDir sync.Mutex
 
 func incrementConnCntDir() {
@@ -60,8 +59,7 @@ func init() {
 	ew := &utils.EmptyWriter{}
 	log.SetOutput(io.Writer(ew))
 	rootCmd.AddCommand(dirCmd)
-	dirCmd.Flags().IntP("thread", "r", 50, "线程数（同时扫多少目标）")
-	dirCmd.Flags().IntP("threadonly", "y", 20, "单个目标线程数")
+	dirCmd.Flags().IntP("thread", "r", 20, "单个目标线程数")
 	dirCmd.Flags().StringP("url", "u", "", "目标url")
 	dirCmd.Flags().StringP("file", "f", "", "目标url列表文件")
 	dirCmd.Flags().IntP("timeout", "t", 10, "超时时间")
@@ -71,6 +69,7 @@ func init() {
 	dirCmd.Flags().BoolP("admin", "a", false, "后台发现")
 	dirCmd.Flags().BoolP("backup", "b", false, "备份文件发现（level:4，不使用字典，只做相关性扫描）")
 	dirCmd.Flags().BoolP("sqlbackup", "s", false, "数据库备份快扫")
+	dirCmd.Flags().BoolP("total", "o", false, "综合扫描")
 }
 
 var dirCmd = &cobra.Command{
@@ -83,12 +82,12 @@ var dirCmd = &cobra.Command{
 		dirParameter.proxy, _ = cmd.Flags().GetString("proxy")
 		dirParameter.timeout, _ = cmd.Flags().GetInt("timeout")
 		dirParameter.thread, _ = cmd.Flags().GetInt("thread")
-		dirParameter.threadOnly, _ = cmd.Flags().GetInt("threadonly")
 		dirParameter.level, _ = cmd.Flags().GetString("level")
 		dirParameter.scanMethod, _ = cmd.Flags().GetString("method")
 		dirParameter.isBackstage, _ = cmd.Flags().GetBool("admin")
 		dirParameter.isBackUp, _ = cmd.Flags().GetBool("backup")
 		dirParameter.isSqlBack, _ = cmd.Flags().GetBool("sqlbackup")
+		dirParameter.isTotal, _ = cmd.Flags().GetBool("total")
 
 		if dirParameter.isSqlBack {
 			temp, err := utils.ReadLinesFromFile("dict/sqlbackup" + dirParameter.level + ".txt")
@@ -120,15 +119,11 @@ var dirCmd = &cobra.Command{
 			}
 			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 			CrackIt(dirParameter)
-			SaveRes()
+			SaveRes(utils.GetDomain(dirParameter.url))
 			return
 		}
 		if dirParameter.file != "" {
 			CrackItsTarget(dirParameter)
-			sort.Slice(targetInfo, func(i, j int) bool {
-				return compareByURL(&targetInfo[i], &targetInfo[j])
-			})
-			SaveRes()
 			return
 		}
 	},
@@ -160,28 +155,14 @@ func CrackItsTarget(dirParameter DirParameter) {
 
 	Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 
-	urlChan := make(chan string)
-	for i := 0; i < dirParameter.thread; i++ {
-		wgDir.Add(1)
-		go func() {
-			defer wgDir.Done()
-			for url := range urlChan {
-				var dir2 DirParameter
-				dir2 = dirParameter
-				dir2.url = url
-				CrackIt(dir2)
-			}
-		}()
-	}
 	for _, url := range result {
-		urlChan <- url
+		var dir2 DirParameter
+		dir2 = dirParameter
+		dir2.url = url
+		CrackIt(dir2)
+		SaveRes(utils.GetDomain(url))
+		targetInfo = nil // 重置targetInfo
 	}
-	close(urlChan)
-	wgDir.Wait()
-}
-
-func compareByURL(a, b *TargetInfo) bool {
-	return a.url < b.url
 }
 
 // CrackIt 爆破启动器
@@ -219,26 +200,27 @@ func CrackIt(dirParameter DirParameter) {
 		}
 	}
 
-	urlChan2 := make(chan string, dirParameter.threadOnly)
+	urlChan := make(chan string, len(dicts))
 	soldiers := 0 // 排雷兵，用来检测是不是被目标ban了
 	isBan := false
-	for i := 0; i < dirParameter.threadOnly; i++ {
-		wgDirIt.Add(1)
+	for i := 0; i < dirParameter.thread; i++ {
+		wgDir.Add(1)
 		go func() {
-			defer wgDirIt.Done()
-			for dict := range urlChan2 {
+			defer wgDir.Done()
+			for dict := range urlChan {
 				// IP被ban了或者网络波动，停止扫描当前目标
 				if isBan {
 					incrementConnCntDir()
 					continue
 				}
+
 				dirPage := utils.DelExtraSlash(dirParameter.url + dict)
-				ask := utils.Ask{}
-				ask.Url = dirPage
-				ask.Proxy = dirParameter.proxy
-				ask.Timeout = dirParameter.timeout
-				ask.Method = dirParameter.scanMethod
-				resp2 := utils.OutsourcingByPwn(ask)
+				ask2 := utils.Ask{}
+				ask2.Url = dirPage
+				ask2.Proxy = dirParameter.proxy
+				ask2.Timeout = dirParameter.timeout
+				ask2.Method = dirParameter.scanMethod
+				resp2 := utils.OutsourcingByPwn(ask2)
 
 				if resp2 == nil {
 					incrementConnCntDir()
@@ -277,16 +259,17 @@ func CrackIt(dirParameter DirParameter) {
 					} else {
 						Ldir.Fatal(getProgress() + dirParameter.url + " 不存在该目录 " + dirPage + " 状态码 " + strconv.Itoa(resp2.StatusCode))
 					}
+
 				}
 			}
 		}()
 	}
 	// 将url发送到urlChan供消费者goroutine处理
 	for _, dict := range dicts {
-		urlChan2 <- dict
+		urlChan <- dict
 	}
-	close(urlChan2)
-	wgDirIt.Wait()
+	close(urlChan)
+	wgDir.Wait()
 }
 
 // 进度条前缀输出
@@ -313,7 +296,7 @@ func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (b
 	}
 
 	for _, v := range utils.NotFoudList {
-		if nowTitle == v {
+		if strings.Contains(nowTitle, v) {
 			return false, ""
 		}
 	}
@@ -322,12 +305,12 @@ func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (b
 }
 
 // SaveRes 保存结果到CSV文件中
-func SaveRes() {
+func SaveRes(filename string) {
 	data := make([][]string, len(targetInfo)+1)
 	titles := []string{"URL", "Code", "Title", "Size"}
 	data[0] = titles
 	for i := 0; i < len(targetInfo); i++ {
 		data[i+1] = []string{targetInfo[i].url, targetInfo[i].code, targetInfo[i].title, targetInfo[i].size}
 	}
-	utils.WriteCsv("dir", data)
+	utils.WriteCsvByName("dir", filename, data)
 }

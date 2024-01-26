@@ -21,6 +21,6 @@
 go.work
 
 .idea/
-urls.txt
-cmd/tmp.txt
+url.txt
 logs/
+tmp/

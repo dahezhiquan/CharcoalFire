@@ -113,6 +113,30 @@ func WriteCsv(path string, data [][]string) {
 	Lw.Info("结果已保存到：" + filePath)
 }
 
+func WriteCsvByName(path string, filename string, data [][]string) {
+
+	err := os.MkdirAll(ResultLogName+"/"+path, 0755)
+	if err != nil {
+		Lw.Fatal(path + " 文件夹创建失败")
+	}
+
+	filePath := filepath.Join(ResultLogName, path, filename+".csv")
+	file, err := os.Create(filePath)
+	if err != nil {
+		Lw.Fatal(filePath + " CSV文件创建失败")
+	}
+
+	// 创建CSV Writer
+	writer := csv.NewWriter(transform.NewWriter(file, simplifiedchinese.GBK.NewEncoder()))
+	defer writer.Flush()
+
+	// 将数据写入CSV文件
+	for _, row := range data {
+		_ = writer.Write(row)
+	}
+	Lw.Info("结果已保存到：" + filePath)
+}
+
 // ClearFile 清空文件内容
 func ClearFile(path string) {
 	currentTime := time.Now().Format("20060102")
