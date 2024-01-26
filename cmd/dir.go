@@ -15,18 +15,19 @@ import (
 )
 
 type DirParameter struct {
-	url         string
-	timeout     int
-	proxy       string
-	file        string
-	thread      int
-	level       string
-	scanMethod  string
-	isBackstage bool // 后台爆破
-	isBackUp    bool // 备份文件爆破
-	isSqlBack   bool // 数据库备份快扫
-	isTotal     bool // 综合扫描
-	isWebShell  bool // webshell扫描
+	url          string
+	timeout      int
+	proxy        string
+	file         string
+	thread       int
+	level        string
+	scanMethod   string
+	isPhpMyAdmin bool // phpmyadmin爆破
+	isBackstage  bool // 后台爆破
+	isBackUp     bool // 备份文件爆破
+	isSqlBack    bool // 数据库备份快扫
+	isTotal      bool // 综合扫描
+	isWebShell   bool // webshell扫描
 }
 
 type TargetInfo struct {
@@ -72,6 +73,7 @@ func init() {
 	dirCmd.Flags().BoolP("sqlbackup", "s", false, "数据库备份快扫")
 	dirCmd.Flags().BoolP("total", "o", false, "综合扫描")
 	dirCmd.Flags().BoolP("webshell", "w", false, "webshell扫描")
+	dirCmd.Flags().BoolP("phpmyadmin", "n", false, "phpmyadmin扫描")
 }
 
 var dirCmd = &cobra.Command{
@@ -91,6 +93,15 @@ var dirCmd = &cobra.Command{
 		dirParameter.isSqlBack, _ = cmd.Flags().GetBool("sqlbackup")
 		dirParameter.isTotal, _ = cmd.Flags().GetBool("total")
 		dirParameter.isWebShell, _ = cmd.Flags().GetBool("webshell")
+		dirParameter.isPhpMyAdmin, _ = cmd.Flags().GetBool("phpmyadmin")
+
+		if dirParameter.isPhpMyAdmin {
+			temp, err := utils.ReadLinesFromFile("dict/phpmyadmin" + dirParameter.level + ".txt")
+			if err != nil {
+				Ldir.Fatal("phpmyadmin字典解析失败")
+			}
+			dictionary = append(dictionary, temp...)
+		}
 
 		if dirParameter.isWebShell {
 			temp, err := utils.ReadLinesFromFile("dict/webshell" + dirParameter.level + ".txt")
@@ -179,7 +190,10 @@ func CrackItsTarget(dirParameter DirParameter) {
 		dir2 = dirParameter
 		dir2.url = url
 		CrackIt(dir2)
-		SaveRes(utils.GetDomain(url))
+		// 有结果才保存文件
+		if targetInfo != nil {
+			SaveRes(utils.GetDomain(url))
+		}
 		utils.DelLine(dirParameter.file, url)
 		targetInfo = nil // 重置targetInfo
 	}
@@ -262,7 +276,7 @@ func CrackIt(dirParameter DirParameter) {
 					// 防止resp2指针移动到末尾导致无法读取的情况
 					body, _ := io.ReadAll(resp2.Body)
 					resBody := ioutil.NopCloser(bytes.NewReader(body))
-					isValid, nowTitle := IsValid(resp2, targetTitle, resBody)
+					isValid, nowTitle := IsValid(dirParameter, resp2, targetTitle, resBody)
 
 					if isValid {
 						Ldir.Info(getProgress() + dirParameter.url + " 发现目录 " + dirPage + " 状态码 " + strconv.Itoa(resp2.StatusCode))
@@ -297,7 +311,7 @@ func getProgress() string {
 	return "[" + strconv.Itoa(connCntDir) + "/" + strconv.Itoa(totalCntDir) + "] "
 }
 
-func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (bool, string) {
+func IsValid(dirParameter DirParameter, resp *http.Response, targetTitle string, respBody io.ReadCloser) (bool, string) {
 
 	if resp.StatusCode != 200 {
 		return false, ""
@@ -317,6 +331,14 @@ func IsValid(resp *http.Response, targetTitle string, respBody io.ReadCloser) (b
 
 	for _, v := range utils.NotFoudList {
 		if strings.Contains(nowTitle, v) {
+			return false, ""
+		}
+	}
+
+	// PHPmyadmin进一步检验
+	if dirParameter.isPhpMyAdmin {
+		nowTitleLower := strings.ToLower(nowTitle)
+		if !strings.Contains(nowTitleLower, "phpmyadmin") {
 			return false, ""
 		}
 	}

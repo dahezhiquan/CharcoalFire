@@ -1,0 +1,11 @@
+/phpmyadmin
+/dbadmin
+/myadmin
+/mysql
+/mysqladmin
+/admin
+/administrator
+/pma
+/phpmyadmin5
+/phpma
+/mysqlmanager
