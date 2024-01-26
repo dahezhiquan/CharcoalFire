@@ -128,6 +128,11 @@ var dirCmd = &cobra.Command{
 		}
 
 		if dirParameter.isBackstage {
+			temp, err := utils.ReadLinesFromFile("dict/back" + dirParameter.level + ".txt")
+			if err != nil {
+				Ldir.Fatal("后台字典解析失败")
+			}
+			dictionary = append(dictionary, temp...)
 		}
 		if dirParameter.isBackUp {
 			if dirParameter.level == "4" {
