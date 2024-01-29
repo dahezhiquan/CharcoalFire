@@ -288,6 +288,11 @@ func CrackIt(dirParameter DirParameter) {
 
 						htmlContent := string(body)
 
+						// size = 0 ,排除
+						if len(htmlContent) == 0 {
+							return
+						}
+
 						info := TargetInfo{
 							size:  strconv.Itoa(len(htmlContent)),
 							url:   dirPage,
