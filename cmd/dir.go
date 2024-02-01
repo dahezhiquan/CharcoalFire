@@ -146,12 +146,16 @@ var dirCmd = &cobra.Command{
 			}
 		}
 
+		// 字典去重，防止扫描了多个一样的目标
+		dictionary = utils.RemoveDuplicates(dictionary)
+
 		if dirParameter.url != "" {
 			if dirParameter.isBackUp {
 				totalCntDir += len(dictionary) + 2*len(utils.BackUpFileList)
 			} else {
 				totalCntDir += len(dictionary)
 			}
+
 			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 			CrackIt(dirParameter)
 			SaveRes(utils.GetDomain(dirParameter.url))
