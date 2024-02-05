@@ -158,7 +158,9 @@ var dirCmd = &cobra.Command{
 
 			Ldir.Info("成功加载字典： " + strconv.Itoa(totalCntDir) + " 条")
 			CrackIt(dirParameter)
-			SaveRes(utils.GetDomain(dirParameter.url))
+			if targetInfo != nil {
+				SaveRes(utils.GetDomain(dirParameter.url))
+			}
 			return
 		}
 		if dirParameter.file != "" {
