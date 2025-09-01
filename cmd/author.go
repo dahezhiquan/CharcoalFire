@@ -7,6 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// init
+// @Description 	作者信息
+// @Create          2025-09-01 17:31:16
+
 func init() {
 	rootCmd.AddCommand(authorCmd)
 }

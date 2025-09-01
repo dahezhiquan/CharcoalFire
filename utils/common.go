@@ -2,9 +2,11 @@ package utils
 
 // 常量池
 
+// Author 查看作者信息
 const Author = `dahezhiquan - wechat`
 
-const Version = "CharcoalFire Version 1.11.2"
+// Version 查看版本信息
+const Version = "CharcoalFire Version 1.1.1"
 
 const Banner = `
  ________  ___  ___  ________  ________  ________  ________  ________  ___       ________ ___  ________  _______      

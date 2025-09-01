@@ -6,6 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// init
+// @Description 	查看当前版本信息
+// @Create          2025-09-01 17:32:18
 func init() {
 	rootCmd.AddCommand(versionCmd)
 }
